@@ -206,10 +206,13 @@ Small ergonomics:
 
 ## 6. Notes / decisions to revisit
 
-[ ] 6.1. `send-keys` into an **attached** session is visible to whoever's
-  attached — by design, and now documented as a feature (shared sessions for
-  pairing; see the README). Still worth considering a `confirm`/`dry_run` flag
-  for *destructive* writes, since the agent and human share one live terminal.
+[x] 6.1. `send-keys` into an **attached** session is visible to whoever's
+  attached — by design, and documented as a feature (shared sessions for
+  pairing; see the README). Decided **against** a `confirm`/`dry_run` flag on
+  `send_keys`/`run`: it stays a low-level primitive, and the shared-terminal
+  caution about destructive writes is handled in the README instead. The explicit
+  `kill_*`/`delete_buffer`/`clear_history` tools remain flagged via the
+  `DESTRUCTIVE` set (`tools/_util.py`) so clients can prompt.
 [x] 6.2. `$(...)` in `send_keys text` is evaluated by the **remote pane's shell**, not
   locally (the SSH layer shell-quotes the tmux argv). Documented in the README
   ("Where `send_keys` text is evaluated") to avoid surprises.
