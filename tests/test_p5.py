@@ -207,3 +207,35 @@ async def test_show_environment_is_read_only(runner):
     mcp = build_server(config=CONFIG)
     tools = {t.name: t for t in mcp._tool_manager.list_tools()}
     assert tools["tmux_show_environment"].annotations.readOnlyHint is True
+
+
+async def test_save_buffer_writes_file(runner, tmp_path):
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "savb"])
+    await runner.run_checked(["set-buffer", "-b", "b1", "buffer-payload-XYZ"])
+
+    out = tmp_path / "buf.txt"
+    res = _tool_json(
+        await mcp.call_tool(
+            "tmux_save_buffer", {"path": str(out), "name": "b1"}
+        )
+    )
+    assert res == {"saved": str(out), "name": "b1", "appended": False}
+    assert out.read_text() == "buffer-payload-XYZ"
+
+
+async def test_load_buffer_reads_file(runner, tmp_path):
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "loadb"])
+
+    src = tmp_path / "in.txt"
+    src.write_text("loaded-content-ABC")
+    res = _tool_json(
+        await mcp.call_tool(
+            "tmux_load_buffer", {"path": str(src), "name": "lb"}
+        )
+    )
+    assert res == {"loaded": str(src), "name": "lb"}
+
+    back = await runner.run_checked(["show-buffer", "-b", "lb"])
+    assert back == "loaded-content-ABC"

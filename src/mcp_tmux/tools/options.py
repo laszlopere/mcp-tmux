@@ -107,3 +107,49 @@ def register(mcp, runner) -> None:
         """Delete a named paste buffer."""
         await runner.run_checked(["delete-buffer", "-b", name], target=target)
         return {"deleted": name}
+
+    @mcp.tool()
+    async def tmux_save_buffer(
+        path: str,
+        name: str | None = None,
+        append: bool = False,
+        target: str | None = None,
+    ) -> dict:
+        """Write a paste buffer to a file (save-buffer).
+
+        `name` selects a named buffer (-b); the default is the most recent one.
+        `append=True` appends to the file instead of overwriting (-a). IMPORTANT:
+        `path` is resolved on the **target** — for an SSH target it is a file on
+        the remote host, not the local machine.
+
+        Returns {"saved": path, "name": name}.
+        """
+        args = ["save-buffer"]
+        if append:
+            args.append("-a")
+        if name:
+            args += ["-b", name]
+        args.append(path)
+        await runner.run_checked(args, target=target)
+        return {"saved": path, "name": name, "appended": append}
+
+    @mcp.tool()
+    async def tmux_load_buffer(
+        path: str,
+        name: str | None = None,
+        target: str | None = None,
+    ) -> dict:
+        """Load a file's contents into a paste buffer (load-buffer).
+
+        `name` stores it under a named buffer (-b). IMPORTANT: `path` is resolved
+        on the **target** — for an SSH target it is a file on the remote host,
+        not the local machine.
+
+        Returns {"loaded": path, "name": name}.
+        """
+        args = ["load-buffer"]
+        if name:
+            args += ["-b", name]
+        args.append(path)
+        await runner.run_checked(args, target=target)
+        return {"loaded": path, "name": name}

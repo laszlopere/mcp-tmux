@@ -127,10 +127,13 @@ High value:
       `-NAME` removal marker into {environment, removed}, tagged read-only. 4
       tests in `test_p5.py` (set→show→inherited-by-respawned-command, unset,
       read-only annotation). 69 passing.
-- [ ] **`tmux_save_buffer` / `tmux_load_buffer`** (`save-buffer -b name path` /
+- [x] **`tmux_save_buffer` / `tmux_load_buffer`** (`save-buffer -b name path` /
       `load-buffer -b name path`) — the file bridge for paste buffers (the
-      set/list/paste/delete set in `options.py` is otherwise complete). Note the
-      file path is resolved on the **target** (remote for SSH targets).
+      set/list/paste/delete set in `options.py` is otherwise complete). The
+      file path is resolved on the **target** (remote for SSH targets) —
+      documented in both docstrings. `save` supports `append` (-a). In
+      `tools/options.py`; 2 tests in `test_p5.py` (save→read file, load→
+      show-buffer round-trip). 71 passing.
 
 Streaming robustness:
 
