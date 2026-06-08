@@ -209,6 +209,142 @@ async def test_show_environment_is_read_only(runner):
     assert tools["tmux_show_environment"].annotations.readOnlyHint is True
 
 
+async def test_new_session_attach_or_create_is_idempotent(runner):
+    mcp = build_server(config=CONFIG)
+
+    first = _tool_json(
+        await mcp.call_tool(
+            "tmux_new_session", {"name": "aoc", "attach_or_create": True}
+        )
+    )
+    assert first["name"] == "aoc"
+
+    # A second create-or-attach with the same name must not error; it reuses
+    # the existing session (same session id).
+    again = _tool_json(
+        await mcp.call_tool(
+            "tmux_new_session", {"name": "aoc", "attach_or_create": True}
+        )
+    )
+    assert again["name"] == "aoc"
+    assert again["id"] == first["id"]
+
+    sessions = await runner.run_checked(["list-sessions", "-F", "#{session_name}"])
+    assert sessions.split().count("aoc") == 1
+
+
+async def test_new_session_with_env(runner):
+    caps = await runner.capabilities()
+    if not caps.has("new_session_env"):
+        pytest.skip("tmux too old for new-session -e")
+    mcp = build_server(config=CONFIG)
+
+    res = _tool_json(
+        await mcp.call_tool(
+            "tmux_new_session",
+            {
+                "name": "nse",
+                "width": 80,
+                "height": 24,
+                "command": "sh -c 'echo GOT-$MCP_BAR; exec sleep 300'",
+                "env": {"MCP_BAR": "quux"},
+            },
+        )
+    )
+    assert res["name"] == "nse"
+    assert "notes" not in res
+
+    for _ in range(20):
+        out = await runner.run_checked(["capture-pane", "-p", "-t", "nse"])
+        if "GOT-quux" in out:
+            break
+        await asyncio.sleep(0.1)
+    assert "GOT-quux" in out
+
+
+async def test_set_pane_title(runner):
+    caps = await runner.capabilities()
+    if not caps.has("pane_title"):
+        pytest.skip("tmux too old for select-pane -T")
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "ptitle"])
+
+    res = _tool_json(
+        await mcp.call_tool(
+            "tmux_set_pane_title",
+            {"target_pane": "ptitle", "title": "agent-pane-1"},
+        )
+    )
+    assert res == {"pane": "ptitle", "title": "agent-pane-1"}
+
+    out = await runner.run_checked(
+        ["display-message", "-p", "-t", "ptitle", "#{pane_title}"]
+    )
+    assert out.strip() == "agent-pane-1"
+
+    # And it surfaces through the curated listing.
+    panes = _tool_json(await mcp.call_tool("tmux_list_panes", {"session": "ptitle"}))
+    assert any(p["title"] == "agent-pane-1" for p in panes["panes"])
+
+
+async def test_last_window_switches_back(runner):
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "nav"])
+    # Creating a second window makes it active; window 0 becomes "last".
+    await runner.run_checked(["new-window", "-t", "nav"])
+    assert (
+        await runner.run_checked(
+            ["display-message", "-p", "-t", "nav", "#{window_index}"]
+        )
+    ).strip() == "1"
+
+    res = _tool_json(await mcp.call_tool("tmux_last_window", {"session": "nav"}))
+    assert res == {"selected": "last"}
+    assert (
+        await runner.run_checked(
+            ["display-message", "-p", "-t", "nav", "#{window_index}"]
+        )
+    ).strip() == "0"
+
+
+async def test_last_pane_switches_back(runner):
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "navp", "-x", "80", "-y", "24"])
+    # Splitting makes the new pane (index 1) active; pane 0 becomes "last".
+    await runner.run_checked(["split-window", "-t", "navp"])
+    assert (
+        await runner.run_checked(
+            ["display-message", "-p", "-t", "navp", "#{pane_index}"]
+        )
+    ).strip() == "1"
+
+    res = _tool_json(await mcp.call_tool("tmux_last_pane", {"window": "navp"}))
+    assert res == {"selected": "last"}
+    assert (
+        await runner.run_checked(
+            ["display-message", "-p", "-t", "navp", "#{pane_index}"]
+        )
+    ).strip() == "0"
+
+
+async def test_next_layout_changes_layout(runner):
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "navl", "-x", "80", "-y", "24"])
+    await runner.run_checked(["split-window", "-t", "navl"])
+
+    async def _layout() -> str:
+        return (
+            await runner.run_checked(
+                ["display-message", "-p", "-t", "navl", "#{window_layout}"]
+            )
+        ).strip()
+
+    before = await _layout()
+    res = _tool_json(await mcp.call_tool("tmux_next_layout", {"window": "navl"}))
+    assert res == {"window": "navl"}
+    assert await _layout() != before
+
+
 async def test_save_buffer_writes_file(runner, tmp_path):
     mcp = build_server(config=CONFIG)
     await runner.run_checked(["new-session", "-d", "-s", "savb"])

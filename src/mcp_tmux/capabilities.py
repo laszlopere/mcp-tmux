@@ -31,6 +31,8 @@ _FEATURES: dict[str, tuple[int, int]] = {
     "send_keys_X": (2, 4),         # send-keys -X (drive copy-mode commands)
     "key_tables": (2, 1),          # bind/list/unbind-key -T <table> (vs -t)
     "respawn_env": (3, 0),         # respawn-pane/-window -e KEY=VAL
+    "new_session_env": (3, 0),     # new-session -e KEY=VAL
+    "pane_title": (2, 6),          # select-pane -T <title> (set pane title)
     "refresh_client_size": (2, 4), # refresh-client -C WxH (set control client size)
 }
 

@@ -61,6 +61,36 @@ def register(mcp, runner) -> None:
         return {"selected": window}
 
     @mcp.tool()
+    async def tmux_last_window(
+        session: str | None = None, target: str | None = None
+    ) -> dict:
+        """Switch to the previously selected window (last-window).
+
+        With `session` (-t), acts on that session; otherwise the current one.
+        Returns {"selected": "last"}.
+        """
+        args = ["last-window"]
+        if session:
+            args += ["-t", session]
+        await runner.run_checked(args, target=target)
+        return {"selected": "last"}
+
+    @mcp.tool()
+    async def tmux_next_layout(
+        window: str | None = None, target: str | None = None
+    ) -> dict:
+        """Rotate a window to its next preset layout (next-layout).
+
+        With `window` (-t), acts on that window; otherwise the current one.
+        Returns {"window": window}.
+        """
+        args = ["next-layout"]
+        if window:
+            args += ["-t", window]
+        await runner.run_checked(args, target=target)
+        return {"window": window}
+
+    @mcp.tool()
     async def tmux_rename_window(
         window: str, new_name: str, target: str | None = None
     ) -> dict:

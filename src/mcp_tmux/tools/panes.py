@@ -65,6 +65,44 @@ def register(mcp, runner) -> None:
         return {"selected": target_pane}
 
     @mcp.tool()
+    async def tmux_last_pane(
+        window: str | None = None, target: str | None = None
+    ) -> dict:
+        """Switch to the previously active pane (last-pane).
+
+        With `window` (-t), acts on that window; otherwise the current one.
+        Returns {"selected": "last"}.
+        """
+        args = ["last-pane"]
+        if window:
+            args += ["-t", window]
+        await runner.run_checked(args, target=target)
+        return {"selected": "last"}
+
+    @mcp.tool()
+    async def tmux_set_pane_title(
+        title: str, target_pane: str | None = None, target: str | None = None
+    ) -> dict:
+        """Set a pane's title (select-pane -T, tmux 2.6+).
+
+        The title is the `#{pane_title}` reported by `tmux_list_panes`; it's a
+        handy label for agents driving several panes (it does not change the
+        window name). Requires tmux 2.6+; on older tmux it is a no-op with a
+        note.
+
+        Returns {"pane": target_pane, "title": title} (or {"notes": [...]}).
+        """
+        caps = await runner.capabilities(target)
+        if not caps.has("pane_title"):
+            return {"notes": ["pane title ignored: select-pane -T requires tmux 2.6+"]}
+        args = ["select-pane"]
+        if target_pane:
+            args += ["-t", target_pane]
+        args += ["-T", title]
+        await runner.run_checked(args, target=target)
+        return {"pane": target_pane, "title": title}
+
+    @mcp.tool()
     async def tmux_resize_pane(
         target_pane: str,
         left: int | None = None,

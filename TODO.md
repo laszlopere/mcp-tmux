@@ -155,12 +155,28 @@ Streaming robustness:
 
 Small ergonomics:
 
-- [ ] **`tmux_new_session` `attach_or_create`** → `new-session -A` (idempotent
-      create-or-attach, 1.8+) and **`env`** → `-e KEY=VAL` (3.0+, gated).
-- [ ] **`tmux_set_pane_title`** (`select-pane -T`, 2.6+) / pane-title plumbing.
-- [ ] Navigation convenience: `tmux_last_window`, `tmux_last_pane`,
+- [x] **`tmux_new_session` `attach_or_create`** and **`env`** → `-e KEY=VAL`
+      (3.0+, gated on the new `new_session_env` capability). tmux's own
+      `new-session -A` *attaches* an existing session, which a headless MCP
+      server has no terminal for (verified: `new-session -A -d` still errors
+      "open terminal failed" on the second call); so `attach_or_create` is a
+      detached `has-session` check that reuses the session (returns its
+      id/name) or creates it — the idempotent create-or-reuse that's actually
+      useful headless. In `tools/sessions.py`; 2 tests in `test_p5.py`
+      (idempotency: same id, single session; env round-trip via a launched
+      command). 77 passing.
+- [x] **`tmux_set_pane_title`** (`select-pane -T <title>`, gated on the new
+      `pane_title` capability, 2.6+; no-op-with-note on older tmux). Labels a
+      pane for agents driving several at once; the title is already surfaced as
+      `#{pane_title}` by `tmux_list_panes`. In `tools/panes.py`; 1 test in
+      `test_p5.py` (set → read back via display-message and via the curated
+      listing). 78 passing.
+- [x] Navigation convenience: `tmux_last_window`, `tmux_last_pane`,
       `tmux_next_layout` (thin wrappers over `last-window`/`last-pane`/
-      `next-layout`).
+      `next-layout`, all 1.8+ baseline so ungated). Each takes an optional
+      `session`/`window` target and defaults to the current one. In
+      `tools/{windows,panes}.py`; 3 tests in `test_p5.py` (switch-back via
+      `#{window_index}`/`#{pane_index}`, layout string changes). 81 passing.
 
 ## P4 — Quality, packaging, CI
 
