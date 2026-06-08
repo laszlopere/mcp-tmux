@@ -87,6 +87,48 @@ def register(mcp, runner) -> None:
         return {"swapped": True, "src": src, "dst": dst}
 
     @mcp.tool()
+    async def tmux_respawn_window(
+        window: str,
+        command: str | None = None,
+        kill: bool = False,
+        start_directory: str | None = None,
+        env: dict[str, str] | None = None,
+        target: str | None = None,
+    ) -> dict:
+        """Restart the command in a window (respawn-window), reusing it in place.
+
+        Like `tmux_respawn_pane` but for a whole window (its single/first pane).
+        By default tmux only respawns a window whose command has exited; set
+        kill=True (-k) to force-restart a live one. `command` defaults to the
+        window's original command; `start_directory` sets its cwd (-c). `env`
+        (-e KEY=VAL, tmux 3.0+) injects environment variables; ignored with a
+        note on older tmux.
+
+        Returns {"respawned": True, "window": window}.
+        """
+        args = ["respawn-window"]
+        if kill:
+            args.append("-k")
+        if start_directory:
+            args += ["-c", start_directory]
+        notes = []
+        if env:
+            caps = await runner.capabilities(target)
+            if caps.has("respawn_env"):
+                for key, value in env.items():
+                    args += ["-e", f"{key}={value}"]
+            else:
+                notes.append("env ignored: respawn -e requires tmux 3.0+")
+        args += ["-t", window]
+        if command:
+            args.append(command)
+        await runner.run_checked(args, target=target)
+        result = {"respawned": True, "window": window}
+        if notes:
+            result["notes"] = notes
+        return result
+
+    @mcp.tool()
     async def tmux_kill_window(window: str, target: str | None = None) -> dict:
         """Kill a window (destructive)."""
         await runner.run_checked(["kill-window", "-t", window], target=target)

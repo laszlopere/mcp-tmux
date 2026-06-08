@@ -111,10 +111,14 @@ High value:
       clean slate. Pairs directly with the capture/run flow. Implemented in
       `tools/panes.py`, tagged destructive in `_util.py`; 2 tests in
       `test_p5.py` (history_size goes >0 → 0; annotation check). 63 passing.
-- [ ] **`tmux_respawn_pane`** (`respawn-pane [-k] [-c dir] [cmd]`) and
-      **`tmux_respawn_window`** (`respawn-window`) — restart the command in a
+- [x] **`tmux_respawn_pane`** (`respawn-pane [-k] [-c dir] [-e KEY=VAL] [cmd]`)
+      and **`tmux_respawn_window`** (`respawn-window`) — restart the command in a
       dead/finished pane/window without recreating layout. For supervising
-      services or retrying a crashed command.
+      services or retrying a crashed command. `kill=True` (-k) force-restarts a
+      live one; `env` (-e) gated on the new `respawn_env` capability (3.0+),
+      ignored-with-note on older tmux. In `tools/{panes,windows}.py`; 3 tests in
+      `test_p5.py` (pane/window restart via `#{pane_current_command}`, env
+      injection round-trip). 66 passing.
 - [ ] **`tmux_set_environment` / `tmux_show_environment`**
       (`set-environment [-gru]` / `show-environment [-g]`) — set/inspect session
       (or global `-g`) env vars *before* launching commands, instead of a racy

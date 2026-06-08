@@ -69,3 +69,80 @@ async def test_clear_history_is_destructive(runner):
     assert ann is not None
     assert ann.readOnlyHint is False
     assert ann.destructiveHint is True
+
+
+async def _current_command(runner, pane: str) -> str:
+    out = await runner.run_checked(
+        ["display-message", "-p", "-t", pane, "#{pane_current_command}"]
+    )
+    return out.strip()
+
+
+async def test_respawn_pane_restarts_command(runner):
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "rsp"])
+
+    # Force-restart the (still-running shell) pane with a new command.
+    res = _tool_json(
+        await mcp.call_tool(
+            "tmux_respawn_pane",
+            {"target_pane": "rsp", "command": "sleep 300", "kill": True},
+        )
+    )
+    assert res == {"respawned": True, "pane": "rsp"}
+
+    for _ in range(20):
+        if await _current_command(runner, "rsp") == "sleep":
+            break
+        await asyncio.sleep(0.1)
+    assert await _current_command(runner, "rsp") == "sleep"
+
+
+async def test_respawn_pane_with_env(runner):
+    caps = await runner.capabilities()
+    if not caps.has("respawn_env"):
+        pytest.skip("tmux too old for respawn -e")
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(
+        ["new-session", "-d", "-s", "rspe", "-x", "80", "-y", "24"]
+    )
+
+    res = _tool_json(
+        await mcp.call_tool(
+            "tmux_respawn_pane",
+            {
+                "target_pane": "rspe",
+                "command": "sh -c 'echo GOT-$MCP_FOO; exec sleep 300'",
+                "kill": True,
+                "env": {"MCP_FOO": "barbaz"},
+            },
+        )
+    )
+    assert res["respawned"] is True
+    assert "notes" not in res
+
+    for _ in range(20):
+        out = await runner.run_checked(["capture-pane", "-p", "-t", "rspe"])
+        if "GOT-barbaz" in out:
+            break
+        await asyncio.sleep(0.1)
+    assert "GOT-barbaz" in out
+
+
+async def test_respawn_window_restarts_command(runner):
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "rsw"])
+
+    res = _tool_json(
+        await mcp.call_tool(
+            "tmux_respawn_window",
+            {"window": "rsw", "command": "sleep 300", "kill": True},
+        )
+    )
+    assert res == {"respawned": True, "window": "rsw"}
+
+    for _ in range(20):
+        if await _current_command(runner, "rsw") == "sleep":
+            break
+        await asyncio.sleep(0.1)
+    assert await _current_command(runner, "rsw") == "sleep"

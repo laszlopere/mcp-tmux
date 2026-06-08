@@ -118,6 +118,49 @@ def register(mcp, runner) -> None:
         return {"cleared": True, "pane": target_pane}
 
     @mcp.tool()
+    async def tmux_respawn_pane(
+        target_pane: str,
+        command: str | None = None,
+        kill: bool = False,
+        start_directory: str | None = None,
+        env: dict[str, str] | None = None,
+        target: str | None = None,
+    ) -> dict:
+        """Restart the command in a pane (respawn-pane), reusing it in place.
+
+        Useful for retrying a crashed command or supervising a service without
+        recreating the window layout. By default tmux only respawns a pane whose
+        command has already exited; set kill=True (-k) to force-restart one that
+        is still running. `command` is the shell command to run (defaults to the
+        pane's original command); `start_directory` sets its cwd (-c). `env`
+        (-e KEY=VAL, tmux 3.0+) injects environment variables; ignored with a
+        note on older tmux.
+
+        Returns {"respawned": True, "pane": target_pane}.
+        """
+        args = ["respawn-pane"]
+        if kill:
+            args.append("-k")
+        if start_directory:
+            args += ["-c", start_directory]
+        notes = []
+        if env:
+            caps = await runner.capabilities(target)
+            if caps.has("respawn_env"):
+                for key, value in env.items():
+                    args += ["-e", f"{key}={value}"]
+            else:
+                notes.append("env ignored: respawn -e requires tmux 3.0+")
+        args += ["-t", target_pane]
+        if command:
+            args.append(command)
+        await runner.run_checked(args, target=target)
+        result = {"respawned": True, "pane": target_pane}
+        if notes:
+            result["notes"] = notes
+        return result
+
+    @mcp.tool()
     async def tmux_select_layout(
         layout: str, window: str | None = None, target: str | None = None
     ) -> dict:

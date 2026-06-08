@@ -30,6 +30,7 @@ _FEATURES: dict[str, tuple[int, int]] = {
     "control_mode": (1, 8),        # tmux -C
     "send_keys_X": (2, 4),         # send-keys -X (drive copy-mode commands)
     "key_tables": (2, 1),          # bind/list/unbind-key -T <table> (vs -t)
+    "respawn_env": (3, 0),         # respawn-pane/-window -e KEY=VAL
 }
 
 _VERSION_RE = re.compile(r"(\d+)\.(\d+)")
