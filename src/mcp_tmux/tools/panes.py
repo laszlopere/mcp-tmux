@@ -99,6 +99,25 @@ def register(mcp, runner) -> None:
         return {"killed": True, "pane": target_pane}
 
     @mcp.tool()
+    async def tmux_clear_history(
+        target_pane: str | None = None, target: str | None = None
+    ) -> dict:
+        """Wipe a pane's scrollback history (clear-history -t pane).
+
+        Use this before a `tmux_send_keys` / `tmux_run` so a subsequent
+        `tmux_capture_pane(start=...)` starts from a clean slate, without the
+        previous output bleeding into the captured range. It clears the
+        scrollback buffer only — the visible screen is untouched.
+
+        Returns {"cleared": True, "pane": target_pane}.
+        """
+        args = ["clear-history"]
+        if target_pane:
+            args += ["-t", target_pane]
+        await runner.run_checked(args, target=target)
+        return {"cleared": True, "pane": target_pane}
+
+    @mcp.tool()
     async def tmux_select_layout(
         layout: str, window: str | None = None, target: str | None = None
     ) -> dict:

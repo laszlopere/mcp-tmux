@@ -45,6 +45,7 @@ DESTRUCTIVE = {
     "tmux_kill_window",
     "tmux_kill_pane",
     "tmux_delete_buffer",
+    "tmux_clear_history",
 }
 
 

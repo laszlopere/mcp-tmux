@@ -106,9 +106,11 @@ version-gated flags) and needs a test.
 
 High value:
 
-- [ ] **`tmux_clear_history`** (`clear-history -t pane`) — wipe a pane's
+- [x] **`tmux_clear_history`** (`clear-history -t pane`) — wipe a pane's
       scrollback so a subsequent `tmux_capture_pane` / `tmux_run` starts from a
-      clean slate. Pairs directly with the capture/run flow; add first.
+      clean slate. Pairs directly with the capture/run flow. Implemented in
+      `tools/panes.py`, tagged destructive in `_util.py`; 2 tests in
+      `test_p5.py` (history_size goes >0 → 0; annotation check). 63 passing.
 - [ ] **`tmux_respawn_pane`** (`respawn-pane [-k] [-c dir] [cmd]`) and
       **`tmux_respawn_window`** (`respawn-window`) — restart the command in a
       dead/finished pane/window without recreating layout. For supervising
