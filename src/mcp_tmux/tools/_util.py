@@ -34,6 +34,8 @@ READ_ONLY = {
     "tmux_find_window",
     "tmux_show_hooks",
     "tmux_list_keys",
+    "tmux_stream_read",
+    "tmux_stream_list",
 }
 
 # Tools that destroy state (kill / delete). Clients should confirm these.

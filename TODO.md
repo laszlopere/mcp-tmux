@@ -1,10 +1,10 @@
 # mcp-tmux — TODO / Roadmap
 
-Status: **Phases 0–3 + P0 + P1 + P2 complete and verified** (passthrough +
+Status: **Phases 0–3 + P0 + P1 + P2 + P3 complete and verified** (passthrough +
 curated tools, local + SSH remote, resources, P0 polish, the P1 wait/sync
-helpers, and the P2 broadened tool surface + target-aware resources).
-Local and remote (pipnode over SSH) both tested end-to-end; 52 passing tests.
-What follows is the plan for the next steps, ordered by value.
+helpers, the P2 broadened tool surface + target-aware resources, and the P3
+control-mode streaming layer). Local and remote (pipnode over SSH) tested
+end-to-end; 60 passing tests. What follows is the plan for the next steps.
 
 ---
 
@@ -68,15 +68,33 @@ made target-aware in `resources.py`. 8 new integration tests in `test_p2.py`
       `tmux://{target}/{session}/windows`, `tmux://{target}/{window}/panes`
       alongside the existing local-only ones.
 
-## P3 — Phase 4: streaming via control mode (`tmux -C`)
+## P3 — Phase 4: streaming via control mode (`tmux -C`) ✅ DONE
 
-- [ ] Persistent control-mode connection per target (`tmux -C attach`/`new`),
-      parsing `%output`, `%window-add`, `%layout-change`, etc.
-- [ ] Expose as **MCP notifications / a long-poll tool** so a client can watch a
-      pane live instead of polling `capture-pane`.
-- [ ] Lifecycle: connection pool, reconnect, teardown; gate on
-      `capabilities.has("control_mode")`.
-- [ ] Keep one-shot CLI as the universal default; control mode is opt-in.
+Implemented in `control.py` (transport: pure parsers, `ControlConnection`,
+`ControlManager` pool) and `tools/stream.py` (agent-facing tools). 8 new tests
+in `test_control.py` (deterministic parser/framing unit tests + one real
+`tmux -C` end-to-end); 60 passing total.
+
+- [x] Persistent control-mode connection per (target, session) via
+      `tmux -C attach -t <session>`. The reader loop parses `%output`,
+      `%window-add`/`%window-close`/`%layout-change`, `%session-changed`,
+      `%exit`, … and the `%begin`/`%end`/`%error` reply framing. Output is
+      un-escaped (`\\ooo` octal + `\\\\`) to bytes → UTF-8, with ANSI stripped by
+      default. Events are sequenced into a ring buffer.
+- [x] Exposed as a **long-poll tool** (more universal than server-initiated
+      notifications): `tmux_stream_read` blocks until new events or timeout and
+      auto-advances a cursor; filterable by `pane`/`kinds`. Also
+      `tmux_stream_start` (idempotent), `tmux_stream_send` (run a command over
+      the connection, get its reply), `tmux_stream_list`, `tmux_stream_stop`.
+- [x] Lifecycle: `ControlManager` pool keyed by (target, session); idempotent
+      start reuses a live connection and replaces a dead one; `stop`/`stop_all`
+      detach the control client (the session keeps running) and cancel tasks;
+      gated on `capabilities.has("control_mode")`.
+- [x] One-shot CLI remains the universal default; control mode is opt-in.
+
+  Possible follow-ups (not blocking): automatic reconnect on unexpected
+  `%exit`; surface `tmux_stream_*` over real MCP notifications for clients that
+  support them; wire `ControlManager.stop_all` into a FastMCP shutdown hook.
 
 ## P4 — Quality, packaging, CI
 

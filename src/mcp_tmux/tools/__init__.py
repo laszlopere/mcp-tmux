@@ -13,6 +13,7 @@ from . import (
     passthrough,
     plumbing,
     sessions,
+    stream,
     wait,
     windows,
 )
@@ -32,4 +33,5 @@ def register_all(mcp, runner) -> None:
     hooks.register(mcp, runner)
     keys.register(mcp, runner)
     copymode.register(mcp, runner)
+    stream.register(mcp, runner)
     finalize_tools(mcp)

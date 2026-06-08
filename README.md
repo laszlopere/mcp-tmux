@@ -56,10 +56,31 @@ python -m mcp_tmux       # stdio server
 | Hooks / scripting | `tmux_set_hook`, `tmux_show_hooks`, `tmux_run_shell`, `tmux_if_shell` |
 | Keys / bindings | `tmux_list_keys`, `tmux_bind_key`, `tmux_unbind_key` |
 | Copy mode | `tmux_copy_mode`, `tmux_copy_scroll`, `tmux_copy_search` |
+| Streaming (control mode) | `tmux_stream_start`, `tmux_stream_read`, `tmux_stream_send`, `tmux_stream_list`, `tmux_stream_stop` |
 
 Every tool accepts an optional `target` (omit / `"local"`, a named profile, or
 `user@host`). For anything not covered by a dedicated tool, use
 `tmux_command(args=[...])`.
+
+### Live streaming (opt-in)
+
+The one-shot CLI is the universal default. For *watching* a pane as it
+produces output — a build, a `tail`, a long job — `tmux_stream_*` opens a
+persistent **control-mode** (`tmux -C`) connection and lets you long-poll its
+event stream instead of repeatedly calling `tmux_capture_pane`:
+
+```
+tmux_stream_start(session="work")          # -> {"stream_id": "cm-1a2b3c4d", ...}
+tmux_stream_read("cm-1a2b3c4d", timeout=10, kinds=["output"])
+#   -> blocks until output, then {"events": [{"type":"output","pane":"%0",
+#                                             "data":"...","seq":42}], "cursor":42}
+tmux_stream_stop("cm-1a2b3c4d")            # detaches; the session keeps running
+```
+
+`tmux_stream_read` auto-advances a cursor, so just call it again for the next
+batch; filter by `pane` and/or `kinds` (`"output"`, `"window-add"`,
+`"layout-change"`, …). One connection is shared per (target, session) and
+`tmux_stream_start` is idempotent.
 
 Read-only state is also exposed as MCP **resources**: `tmux://sessions`,
 `tmux://{session}/windows`, `tmux://{window}/panes` (local), plus target-aware
