@@ -8,13 +8,21 @@ version = "0.1.0"
 description = "A comprehensive, universal MCP server for driving tmux (local and over SSH)."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
-authors = [{ name = "mcp-tmux" }]
+license = { file = "LICENSE" }
+authors = [
+    { name = "László Pere", email = "226979892+laszlopere@users.noreply.github.com" },
+]
 keywords = ["mcp", "tmux", "terminal", "automation"]
 dependencies = [
     "mcp>=1.2.0",
     "tomli>=2.0.0; python_version < '3.11'",
 ]
+
+[project.urls]
+Homepage = "https://github.com/laszlopere/mcp-tmux"
+Repository = "https://github.com/laszlopere/mcp-tmux"
+Issues = "https://github.com/laszlopere/mcp-tmux/issues"
+Funding = "https://github.com/sponsors/laszlopere"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.6", "mypy>=1.11"]

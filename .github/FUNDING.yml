@@ -1,0 +1,11 @@
+# GitHub Sponsors / funding configuration.
+# This enables the "Sponsor" button on the repository.
+# Sponsorship tiers (and their perks) are configured in the GitHub Sponsors
+# dashboard, not in this file.
+
+github: [laszlopere]
+
+# Other funding platforms are also supported, e.g.:
+# ko_fi: your_kofi_name
+# liberapay: your_liberapay_name
+# custom: ["https://example.com/donate"]

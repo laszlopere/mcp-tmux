@@ -1,8 +1,15 @@
 # mcp-tmux
 
+[![CI](https://github.com/laszlopere/mcp-tmux/actions/workflows/ci.yml/badge.svg)](https://github.com/laszlopere/mcp-tmux/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2.svg)](https://github.com/sponsors/laszlopere)
+
 A comprehensive, universal [MCP](https://modelcontextprotocol.io) server for
 driving **tmux** — sessions, windows, panes, sending keystrokes, and reading
 pane output — on the local machine or on remote hosts over SSH.
+
+Source: **<https://github.com/laszlopere/mcp-tmux>**
 
 ## Shared, visible sessions — pair with the AI
 
@@ -206,3 +213,21 @@ python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
 pytest            # unit tests always run; integration tests run if tmux exists
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full checklist (ruff, mypy,
+pytest) and contribution guidelines.
+
+## Contributing
+
+Bug reports, feature requests, and pull requests are welcome on GitHub:
+**<https://github.com/laszlopere/mcp-tmux>**. Please read
+[CONTRIBUTING.md](CONTRIBUTING.md) first.
+
+## Sponsor
+
+If this project is useful to you, consider sponsoring its development via
+[GitHub Sponsors](https://github.com/sponsors/laszlopere). ❤️
+
+## License
+
+[MIT](LICENSE) © László Pere
