@@ -35,6 +35,14 @@ WINDOW_FIELDS = [
     ("layout", "window_layout", None, "str"),
 ]
 
+CLIENT_FIELDS = [
+    ("name", "client_name", "client_name", "str"),
+    ("tty", "client_tty", None, "str"),
+    ("session", "client_session", None, "str"),
+    ("width", "client_width", None, "int"),
+    ("height", "client_height", None, "int"),
+]
+
 PANE_FIELDS = [
     ("id", "pane_id", None, "str"),
     ("index", "pane_index", None, "int"),

@@ -2,7 +2,20 @@
 
 from __future__ import annotations
 
-from . import io, options, panes, passthrough, sessions, wait, windows
+from . import (
+    clients,
+    copymode,
+    hooks,
+    io,
+    keys,
+    options,
+    panes,
+    passthrough,
+    plumbing,
+    sessions,
+    wait,
+    windows,
+)
 from ._util import finalize_tools
 
 
@@ -14,4 +27,9 @@ def register_all(mcp, runner) -> None:
     io.register(mcp, runner)
     options.register(mcp, runner)
     wait.register(mcp, runner)
+    clients.register(mcp, runner)
+    plumbing.register(mcp, runner)
+    hooks.register(mcp, runner)
+    keys.register(mcp, runner)
+    copymode.register(mcp, runner)
     finalize_tools(mcp)

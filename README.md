@@ -49,11 +49,22 @@ python -m mcp_tmux       # stdio server
 | Windows | `tmux_list_windows`, `tmux_new_window`, `tmux_select_window`, `tmux_rename_window`, `tmux_move_window`, `tmux_swap_window`, `tmux_kill_window` |
 | Panes | `tmux_list_panes`, `tmux_split_window`, `tmux_select_pane`, `tmux_resize_pane`, `tmux_swap_pane`, `tmux_kill_pane`, `tmux_select_layout` |
 | I/O | `tmux_send_keys`, `tmux_capture_pane` |
+| Wait / sync | `tmux_wait_for_text`, `tmux_wait_for_idle`, `tmux_run` |
 | Options / buffers | `tmux_set_option`, `tmux_show_options`, `tmux_list_buffers`, `tmux_set_buffer`, `tmux_paste_buffer`, `tmux_delete_buffer` |
+| Clients / server | `tmux_list_clients`, `tmux_server_info`, `tmux_display_message` |
+| Plumbing | `tmux_link_window`, `tmux_unlink_window`, `tmux_break_pane`, `tmux_join_pane`, `tmux_find_window`, `tmux_pipe_pane` |
+| Hooks / scripting | `tmux_set_hook`, `tmux_show_hooks`, `tmux_run_shell`, `tmux_if_shell` |
+| Keys / bindings | `tmux_list_keys`, `tmux_bind_key`, `tmux_unbind_key` |
+| Copy mode | `tmux_copy_mode`, `tmux_copy_scroll`, `tmux_copy_search` |
 
 Every tool accepts an optional `target` (omit / `"local"`, a named profile, or
 `user@host`). For anything not covered by a dedicated tool, use
 `tmux_command(args=[...])`.
+
+Read-only state is also exposed as MCP **resources**: `tmux://sessions`,
+`tmux://{session}/windows`, `tmux://{window}/panes` (local), plus target-aware
+variants `tmux://{target}/sessions`, `tmux://{target}/{session}/windows`,
+`tmux://{target}/{window}/panes`.
 
 A typical agent flow:
 

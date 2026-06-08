@@ -23,10 +23,13 @@ _FEATURES: dict[str, tuple[int, int]] = {
     "window_active_clients": (3, 1),
     "pane_pid": (1, 8),
     "session_created": (1, 8),
+    "client_name": (2, 4),         # client_name format var (else use client_tty)
     # flags / commands
     "capture_join": (1, 8),        # capture-pane -J (rejoin wrapped lines)
     "capture_escapes": (1, 8),     # capture-pane -e (include escape sequences)
     "control_mode": (1, 8),        # tmux -C
+    "send_keys_X": (2, 4),         # send-keys -X (drive copy-mode commands)
+    "key_tables": (2, 1),          # bind/list/unbind-key -T <table> (vs -t)
 }
 
 _VERSION_RE = re.compile(r"(\d+)\.(\d+)")

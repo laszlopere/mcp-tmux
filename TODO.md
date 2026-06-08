@@ -1,8 +1,9 @@
 # mcp-tmux — TODO / Roadmap
 
-Status: **Phases 0–3 + P0 + P1 complete and verified** (passthrough + curated
-tools, local + SSH remote, resources, P0 polish, and the P1 wait/sync helpers).
-Local and remote (pipnode over SSH) both tested end-to-end; 44 passing tests.
+Status: **Phases 0–3 + P0 + P1 + P2 complete and verified** (passthrough +
+curated tools, local + SSH remote, resources, P0 polish, the P1 wait/sync
+helpers, and the P2 broadened tool surface + target-aware resources).
+Local and remote (pipnode over SSH) both tested end-to-end; 52 passing tests.
 What follows is the plan for the next steps, ordered by value.
 
 ---
@@ -39,20 +40,33 @@ Driving a shell blind (send → sleep → capture) is fragile. Implemented in
       exit_code, output, elapsed}. Pure parser `_extract_run_output` is
       unit-tested; the marker approach avoids the input-echo false match.
 
-## P2 — Broaden the curated tool surface
+## P2 — Broaden the curated tool surface ✅ DONE
 
-Passthrough already covers everything, but first-class tools help discovery:
+Passthrough already covers everything, but first-class tools help discovery.
+Implemented across `tools/{clients,plumbing,hooks,keys,copymode}.py`; resources
+made target-aware in `resources.py`. 8 new integration tests in `test_p2.py`
+(52 passing total).
 
-- [ ] Clients/server: `tmux_list_clients`, `tmux_server_info` (uptime, pid,
-      socket), `tmux_display_message` (already partly via `tmux_query`).
-- [ ] Window/pane plumbing: `tmux_link_window`, `tmux_unlink_window`,
-      `tmux_break_pane`, `tmux_join_pane`, `tmux_find_window`,
-      `tmux_pipe_pane` (stream a pane to a command — pairs well with logging).
-- [ ] Hooks & scripting: `tmux_set_hook`, `tmux_run_shell`, `tmux_if_shell`.
-- [ ] Keys/bindings: `tmux_list_keys`, `tmux_bind_key`, `tmux_unbind_key`.
-- [ ] Copy-mode helpers: enter copy-mode, scroll, search, copy selection.
-- [ ] Make **resources target-aware** (currently local-only): e.g.
-      `tmux://{target}/sessions`.
+- [x] Clients/server (`tools/clients.py`): `tmux_list_clients`,
+      `tmux_server_info` (pid, socket path, version), `tmux_display_message`
+      (shows a message on the client's status line — distinct from
+      `tmux_query`'s `display-message -p`).
+- [x] Window/pane plumbing (`tools/plumbing.py`): `tmux_link_window`,
+      `tmux_unlink_window`, `tmux_break_pane`, `tmux_join_pane`,
+      `tmux_find_window` (non-interactive name/title search — tmux's own
+      `find-window` opens an interactive chooser), `tmux_pipe_pane`.
+- [x] Hooks & scripting (`tools/hooks.py`): `tmux_set_hook`, `tmux_show_hooks`,
+      `tmux_run_shell`, `tmux_if_shell`.
+- [x] Keys/bindings (`tools/keys.py`): `tmux_list_keys`, `tmux_bind_key`,
+      `tmux_unbind_key`. The key-table flag is `-T` (2.1+) vs `-t` (older),
+      gated via the `key_tables` capability.
+- [x] Copy-mode helpers (`tools/copymode.py`): `tmux_copy_mode` (enter/exit),
+      `tmux_copy_scroll`, `tmux_copy_search`. Driven by `send-keys -X` (gated on
+      the `send_keys_X` / tmux 2.4+ capability). To *read* scrolled-back content,
+      `tmux_capture_pane(start=...)` is simpler than copying a selection.
+- [x] **Resources are target-aware**: added `tmux://{target}/sessions`,
+      `tmux://{target}/{session}/windows`, `tmux://{target}/{window}/panes`
+      alongside the existing local-only ones.
 
 ## P3 — Phase 4: streaming via control mode (`tmux -C`)
 
