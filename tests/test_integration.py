@@ -104,3 +104,75 @@ async def test_capture_trim_via_tool(runner):
     assert raw.endswith("\n")
 
     await runner.run_checked(["kill-session", "-t", "trimtest"])
+
+
+def _tool_json(res):
+    payload = res[0] if isinstance(res, tuple) else res
+    import json
+
+    return json.loads(payload[0].text)
+
+
+async def test_wait_for_text_via_tool(runner):
+    from mcp_tmux.server import build_server
+
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "waittest"])
+
+    # Send a command that prints a marker after a short delay.
+    await runner.run_checked(
+        ["send-keys", "-t", "waittest", "-l", "sleep 0.3; echo READY-XYZ"]
+    )
+    await runner.run_checked(["send-keys", "-t", "waittest", "Enter"])
+
+    res = await mcp.call_tool(
+        "tmux_wait_for_text",
+        {"target_pane": "waittest", "pattern": "READY-XYZ", "timeout": 8},
+    )
+    data = _tool_json(res)
+    assert data["matched"] is True
+    assert "READY-XYZ" in data["content"]
+
+    await runner.run_checked(["kill-session", "-t", "waittest"])
+
+
+async def test_wait_for_text_timeout(runner):
+    from mcp_tmux.server import build_server
+
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "wtimeout"])
+    res = await mcp.call_tool(
+        "tmux_wait_for_text",
+        {"target_pane": "wtimeout", "pattern": "NEVER-APPEARS", "timeout": 0.6},
+    )
+    data = _tool_json(res)
+    assert data["matched"] is False
+    await runner.run_checked(["kill-session", "-t", "wtimeout"])
+
+
+async def test_run_collects_output_and_exit(runner):
+    from mcp_tmux.server import build_server
+
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "runtest"])
+
+    ok = _tool_json(
+        await mcp.call_tool(
+            "tmux_run",
+            {"target_pane": "runtest", "command": "echo hello && echo world", "timeout": 10},
+        )
+    )
+    assert ok["completed"] is True
+    assert ok["exit_code"] == 0
+    assert ok["output"].splitlines() == ["hello", "world"]
+
+    bad = _tool_json(
+        await mcp.call_tool(
+            "tmux_run",
+            {"target_pane": "runtest", "command": "false", "timeout": 10},
+        )
+    )
+    assert bad["completed"] is True
+    assert bad["exit_code"] == 1
+
+    await runner.run_checked(["kill-session", "-t", "runtest"])

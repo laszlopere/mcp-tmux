@@ -1,9 +1,9 @@
 # mcp-tmux — TODO / Roadmap
 
-Status: **Phases 0–3 + P0 complete and verified** (passthrough + curated tools,
-local + SSH remote, resources, plus the P0 polish below). Local and remote
-(pipnode over SSH) both tested end-to-end; 36 passing tests. What follows is the
-plan for the next steps, ordered by value.
+Status: **Phases 0–3 + P0 + P1 complete and verified** (passthrough + curated
+tools, local + SSH remote, resources, P0 polish, and the P1 wait/sync helpers).
+Local and remote (pipnode over SSH) both tested end-to-end; 44 passing tests.
+What follows is the plan for the next steps, ordered by value.
 
 ---
 
@@ -22,20 +22,22 @@ plan for the next steps, ordered by value.
       numeric/boolean fields (`windows`, `attached`, `panes`, `width/height`,
       `pid`, `created`, …) to int/bool; applied in `runner.list_records`.
 
-## P1 — The big agent-experience win: wait/synchronize helpers
+## P1 — The big agent-experience win: wait/synchronize helpers ✅ DONE
 
-Driving a shell blind (send → sleep → capture) is fragile. Add:
+Driving a shell blind (send → sleep → capture) is fragile. Implemented in
+`tools/wait.py`; verified locally and against pipnode's `testMCP` session.
 
-- [ ] **`tmux_wait_for_text(target_pane, pattern, timeout, regex=False)`** —
-      poll `capture-pane` until `pattern` appears or timeout. Returns matched
-      content + whether it matched.
-- [ ] **`tmux_wait_for_idle(target_pane, idle_ms, timeout)`** — return once the
-      pane content stops changing for `idle_ms` (command finished producing
-      output).
-- [ ] **`tmux_run(target_pane, command, timeout)`** — convenience that sends a
-      command, waits for the prompt/idle, and returns just the new output. The
-      single most useful tool for agents. Consider a sentinel-marker approach
-      (`echo __DONE_$RANDOM__`) for reliable completion detection.
+- [x] **`tmux_wait_for_text(target_pane, pattern, timeout, regex=False, history)`**
+      — polls `capture-pane` until `pattern` (substring or regex) appears.
+      Returns {matched, elapsed, content}. (Caveat documented: a pattern can
+      match the echoed input line; use `tmux_run` to wait for completion.)
+- [x] **`tmux_wait_for_idle(target_pane, idle_seconds, timeout)`** — returns once
+      the capture is unchanged for `idle_seconds`. Returns {idle, elapsed, content}.
+- [x] **`tmux_run(target_pane, command, timeout, history)`** — brackets the
+      command with unique markers (`__MCP_BEG/END_<token>__`), polls to
+      completion, and returns just the output + exit code: {completed,
+      exit_code, output, elapsed}. Pure parser `_extract_run_output` is
+      unit-tested; the marker approach avoids the input-echo false match.
 
 ## P2 — Broaden the curated tool surface
 

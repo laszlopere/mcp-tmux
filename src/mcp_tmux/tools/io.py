@@ -6,6 +6,8 @@ observe results.
 
 from __future__ import annotations
 
+from ._capture import capture_text
+
 
 def register(mcp, runner) -> None:
     @mcp.tool()
@@ -73,22 +75,14 @@ def register(mcp, runner) -> None:
 
         Returns {"content": <captured text>}.
         """
-        caps = await runner.capabilities(target)
-        args = ["capture-pane", "-p"]
-        if target_pane:
-            args += ["-t", target_pane]
-        if escapes and caps.has("capture_escapes"):
-            args.append("-e")
-        if join and caps.has("capture_join"):
-            args.append("-J")
-        if start is not None:
-            args += ["-S", str(start)]
-        if end is not None:
-            args += ["-E", str(end)]
-        content = await runner.run_checked(args, target=target)
-        if trim:
-            lines = content.split("\n")
-            while lines and lines[-1].strip() == "":
-                lines.pop()
-            content = "\n".join(lines)
+        content = await capture_text(
+            runner,
+            target_pane,
+            target=target,
+            start=start,
+            end=end,
+            escapes=escapes,
+            join=join,
+            trim=trim,
+        )
         return {"content": content}

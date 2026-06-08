@@ -27,6 +27,8 @@ READ_ONLY = {
     "tmux_capture_pane",
     "tmux_show_options",
     "tmux_list_buffers",
+    "tmux_wait_for_text",
+    "tmux_wait_for_idle",
 }
 
 # Tools that destroy state (kill / delete). Clients should confirm these.
