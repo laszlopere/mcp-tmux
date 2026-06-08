@@ -194,14 +194,15 @@ Small ergonomics:
       tmux 1.8 / 2.x / 3.x to prove the 1.8+ universality claim and catch
       format-var/flag drift.
 [ ] 4.3. **Lint & types** — add `ruff` + `mypy`; fix the few `# type: ignore`s.
-[~] 4.4. **Packaging** — DONE except PyPI upload. `uv.lock` committed (uv 0.11.19);
-      `uv build` produces sdist+wheel; `python_requires` smoke on a clean 3.10
-      env passes (import, `build_server`, tomli conditional dep, console script
-      start/exit); `uvx --from <wheel> mcp-tmux` verified on 3.10 and 3.12; tagged
-      `v0.1.0`. TODO: `uv publish` to PyPI (needs token; irreversible) so
-      `uvx mcp-tmux` resolves from the index, then push the tag.
+[x] 4.4. **Packaging** — `uv.lock` committed (uv 0.11.19); `uv build` produces
+      sdist+wheel; `python_requires` smoke on a clean 3.10 env passes (import,
+      `build_server`, tomli conditional dep, console script start/exit);
+      `uvx --from <wheel> mcp-tmux` verified on 3.10 and 3.12; tagged `v0.1.0`.
 [ ] 4.5. **CONTRIBUTING / config docs** — document named-target profiles
       (e.g. a `[targets.pipnode]` example with jump host + identity).
+[ ] 4.6. **Publish to PyPI** — `uv publish` (needs token; irreversible — claims the
+      `mcp-tmux` name permanently) so `uvx mcp-tmux` resolves from the index, then
+      `git push origin master --tags`. Build is reproducible from `uv.lock` (4.4).
 
 ## 6. Notes / decisions to revisit
 
