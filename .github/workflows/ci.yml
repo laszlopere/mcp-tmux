@@ -19,21 +19,20 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Set up Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
-
       - name: Install the project
-        run: uv pip install --system -e ".[dev]"
+        # Let uv manage a project venv; installing into the runner's system
+        # Python fails under PEP 668 (externally managed).
+        run: uv sync --all-extras --python ${{ matrix.python-version }}
 
       - name: Lint (ruff)
-        run: ruff check .
+        run: uv run ruff check .
 
       - name: Format check (ruff)
-        run: ruff format --check .
+        run: uv run ruff format --check .
 
       - name: Type-check (mypy)
-        run: mypy
+        run: uv run mypy
 
       - name: Test (pytest)
         # tmux is present on ubuntu-latest, so integration tests run too.
-        run: pytest -v
+        run: uv run pytest -v
