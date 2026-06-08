@@ -1,26 +1,26 @@
 # mcp-tmux — TODO / Roadmap
 
-Status: **Phases 0–3 complete and verified** (passthrough + curated tools,
-local + SSH remote, resources). Local and remote (pipnode over SSH) both tested
-end-to-end. What follows is the plan for the next steps, ordered by value.
+Status: **Phases 0–3 + P0 complete and verified** (passthrough + curated tools,
+local + SSH remote, resources, plus the P0 polish below). Local and remote
+(pipnode over SSH) both tested end-to-end; 36 passing tests. What follows is the
+plan for the next steps, ordered by value.
 
 ---
 
-## P0 — Correctness & ergonomics gaps found during the build
+## P0 — Correctness & ergonomics gaps found during the build ✅ DONE
 
-- [ ] **Tool annotations** (`readOnlyHint` / `destructiveHint` / `idempotentHint`).
-      Skipped initially for SDK-version safety. Add via `ToolAnnotations` so
-      clients can warn before `tmux_kill_*` / `tmux_command`. Verify the
-      installed `mcp` version supports it; gate gracefully if not.
-- [ ] **`trim` option on `tmux_capture_pane`.** Captures currently include the
-      pane's trailing blank lines. Add `trim=True` (default) to strip trailing
-      empty lines; keep raw when `trim=False`.
-- [ ] **Structured errors.** `TmuxError` currently surfaces as a generic tool
-      error. Map to `McpError` with a clear code/message and include
-      `exit_code` + `stderr` in structured content.
-- [ ] **Numeric coercion.** `list_*` fields like `windows`, `attached`, `panes`,
-      `width/height`, `pid`, `created` come back as strings. Optionally coerce
-      known-numeric/boolean fields to int/bool in `formats.parse_records`.
+- [x] **Tool annotations** (`readOnlyHint` / `destructiveHint`). Applied
+      centrally in `tools/_util.py:finalize_tools` via `ToolAnnotations`, tagging
+      read-only and destructive tools by name. Verified in `list_tools`.
+- [x] **`trim` option on `tmux_capture_pane`.** `trim=True` (default) strips the
+      trailing blank padding lines tmux emits; `trim=False` keeps the raw
+      capture. Covered by an integration test.
+- [x] **Structured errors.** `TmuxError`/`ValueError` are mapped to FastMCP
+      `ToolError` (clean message incl. exit status, no traceback) in
+      `tools/_util.py:_wrap_errors`.
+- [x] **Numeric coercion.** `formats.coerce_records` converts known
+      numeric/boolean fields (`windows`, `attached`, `panes`, `width/height`,
+      `pid`, `created`, …) to int/bool; applied in `runner.list_records`.
 
 ## P1 — The big agent-experience win: wait/synchronize helpers
 

@@ -13,7 +13,7 @@ from typing import Any
 
 from .capabilities import Capabilities
 from .config import DEFAULT_TIMEOUT
-from .formats import build_format, parse_records
+from .formats import build_format, coerce_records, parse_records
 from .targets import Target, resolve_target
 
 
@@ -139,12 +139,14 @@ class TmuxRunner:
     async def list_records(
         self,
         list_cmd: list[str],
-        fields: list[tuple[str, str, str | None]],
+        fields: list[tuple],
         *,
         target: str | None = None,
-    ) -> list[dict[str, str]]:
-        """Run a ``list-*`` command with a gated ``-F`` format and parse it."""
+    ) -> list[dict[str, object]]:
+        """Run a ``list-*`` command with a gated ``-F`` format, parse it, and
+        coerce known numeric/boolean fields to int/bool."""
         caps = await self.capabilities(target)
         fmt, keys = build_format(fields, caps)
         stdout = await self.run_checked([*list_cmd, "-F", fmt], target=target)
-        return parse_records(stdout, keys)
+        records = parse_records(stdout, keys)
+        return coerce_records(records, fields, caps)

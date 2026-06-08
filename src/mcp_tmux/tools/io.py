@@ -59,6 +59,7 @@ def register(mcp, runner) -> None:
         end: int | str | None = None,
         escapes: bool = False,
         join: bool = True,
+        trim: bool = True,
         target: str | None = None,
     ) -> dict:
         """Capture (read) the visible contents and/or scrollback of a pane.
@@ -67,6 +68,8 @@ def register(mcp, runner) -> None:
         scrollback line range (-S/-E): negative or "-" for the start of history,
         e.g. start=-100 grabs the last 100+ lines. `escapes=True` keeps ANSI
         color/escape sequences (-e). `join=True` rejoins wrapped lines (-J).
+        `trim=True` (default) drops the empty padding lines tmux emits below the
+        last line of real content; set trim=False to keep the raw capture.
 
         Returns {"content": <captured text>}.
         """
@@ -83,4 +86,9 @@ def register(mcp, runner) -> None:
         if end is not None:
             args += ["-E", str(end)]
         content = await runner.run_checked(args, target=target)
+        if trim:
+            lines = content.split("\n")
+            while lines and lines[-1].strip() == "":
+                lines.pop()
+            content = "\n".join(lines)
         return {"content": content}

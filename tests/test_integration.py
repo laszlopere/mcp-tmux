@@ -66,3 +66,41 @@ async def test_session_send_capture_roundtrip(runner):
 
     # Clean up the session.
     await runner.run_checked(["kill-session", "-t", "itest"])
+
+
+async def test_capture_trim_via_tool(runner):
+    """The capture_pane tool trims tmux's trailing blank padding lines."""
+    import json
+
+    from mcp_tmux.server import build_server
+
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "trimtest"])
+    await runner.run_checked(["send-keys", "-t", "trimtest", "-l", "echo trimmed"])
+    await runner.run_checked(["send-keys", "-t", "trimtest", "Enter"])
+
+    import asyncio
+
+    content = ""
+    for _ in range(20):
+        res = await mcp.call_tool("tmux_capture_pane", {"target_pane": "trimtest"})
+        payload = res[0] if isinstance(res, tuple) else res
+        content = json.loads(payload[0].text)["content"]
+        if "trimmed" in content:
+            break
+        await asyncio.sleep(0.1)
+
+    assert "trimmed" in content
+    # Trimmed: must not end with a blank line.
+    assert not content.endswith("\n")
+    assert content.splitlines()[-1].strip() != ""
+
+    # Untrimmed keeps the padding (ends with blank lines).
+    res = await mcp.call_tool(
+        "tmux_capture_pane", {"target_pane": "trimtest", "trim": False}
+    )
+    payload = res[0] if isinstance(res, tuple) else res
+    raw = json.loads(payload[0].text)["content"]
+    assert raw.endswith("\n")
+
+    await runner.run_checked(["kill-session", "-t", "trimtest"])
