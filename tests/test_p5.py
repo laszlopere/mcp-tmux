@@ -146,3 +146,64 @@ async def test_respawn_window_restarts_command(runner):
             break
         await asyncio.sleep(0.1)
     assert await _current_command(runner, "rsw") == "sleep"
+
+
+async def test_set_show_environment_roundtrip(runner):
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "envt"])
+
+    setres = _tool_json(
+        await mcp.call_tool(
+            "tmux_set_environment",
+            {"name": "MCP_ENVVAR", "value": "hello", "session": "envt"},
+        )
+    )
+    assert setres == {"set": "MCP_ENVVAR", "value": "hello", "global": False}
+
+    # Read just that variable back.
+    shown = _tool_json(
+        await mcp.call_tool(
+            "tmux_show_environment",
+            {"name": "MCP_ENVVAR", "session": "envt"},
+        )
+    )
+    assert shown["environment"]["MCP_ENVVAR"] == "hello"
+
+    # A command launched afterwards inherits it.
+    await runner.run_checked(
+        ["respawn-pane", "-k", "-t", "envt", "sh -c 'echo SAW-$MCP_ENVVAR; exec sleep 300'"]
+    )
+    for _ in range(20):
+        out = await runner.run_checked(["capture-pane", "-p", "-t", "envt"])
+        if "SAW-hello" in out:
+            break
+        await asyncio.sleep(0.1)
+    assert "SAW-hello" in out
+
+
+async def test_unset_environment(runner):
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "envu"])
+
+    await mcp.call_tool(
+        "tmux_set_environment",
+        {"name": "MCP_GONE", "value": "x", "session": "envu"},
+    )
+    unset = _tool_json(
+        await mcp.call_tool(
+            "tmux_set_environment",
+            {"name": "MCP_GONE", "unset": True, "session": "envu"},
+        )
+    )
+    assert unset == {"unset": "MCP_GONE", "global": False}
+
+    shown = _tool_json(
+        await mcp.call_tool("tmux_show_environment", {"session": "envu"})
+    )
+    assert "MCP_GONE" not in shown["environment"]
+
+
+async def test_show_environment_is_read_only(runner):
+    mcp = build_server(config=CONFIG)
+    tools = {t.name: t for t in mcp._tool_manager.list_tools()}
+    assert tools["tmux_show_environment"].annotations.readOnlyHint is True

@@ -119,10 +119,14 @@ High value:
       ignored-with-note on older tmux. In `tools/{panes,windows}.py`; 3 tests in
       `test_p5.py` (pane/window restart via `#{pane_current_command}`, env
       injection round-trip). 66 passing.
-- [ ] **`tmux_set_environment` / `tmux_show_environment`**
+- [x] **`tmux_set_environment` / `tmux_show_environment`**
       (`set-environment [-gru]` / `show-environment [-g]`) — set/inspect session
       (or global `-g`) env vars *before* launching commands, instead of a racy
-      `export` via `send_keys`. Likely a new `tools/environment.py`.
+      `export` via `send_keys`. New `tools/environment.py`; `set` supports
+      `global_`/`remove`(-r)/`unset`(-u); `show` parses `NAME=value` and the
+      `-NAME` removal marker into {environment, removed}, tagged read-only. 4
+      tests in `test_p5.py` (set→show→inherited-by-respawned-command, unset,
+      read-only annotation). 69 passing.
 - [ ] **`tmux_save_buffer` / `tmux_load_buffer`** (`save-buffer -b name path` /
       `load-buffer -b name path`) — the file bridge for paste buffers (the
       set/list/paste/delete set in `options.py` is otherwise complete). Note the

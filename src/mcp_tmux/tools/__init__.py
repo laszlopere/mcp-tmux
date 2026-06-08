@@ -5,6 +5,7 @@ from __future__ import annotations
 from . import (
     clients,
     copymode,
+    environment,
     hooks,
     io,
     keys,
@@ -27,6 +28,7 @@ def register_all(mcp, runner) -> None:
     panes.register(mcp, runner)
     io.register(mcp, runner)
     options.register(mcp, runner)
+    environment.register(mcp, runner)
     wait.register(mcp, runner)
     clients.register(mcp, runner)
     plumbing.register(mcp, runner)

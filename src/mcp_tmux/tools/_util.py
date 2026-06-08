@@ -26,6 +26,7 @@ READ_ONLY = {
     "tmux_list_panes",
     "tmux_capture_pane",
     "tmux_show_options",
+    "tmux_show_environment",
     "tmux_list_buffers",
     "tmux_wait_for_text",
     "tmux_wait_for_idle",
