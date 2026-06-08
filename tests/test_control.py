@@ -119,6 +119,62 @@ async def test_exit_marks_not_alive():
     assert conn.alive is False
 
 
+# --- auto-reconnect machinery (no subprocess) -------------------------------
+
+
+async def test_reconnect_succeeds_and_emits_event():
+    conn = _conn()
+    conn._reconnect_base_delay = 0  # don't actually wait
+    spawns = []
+
+    async def fake_spawn():
+        spawns.append(1)
+        conn.alive = True
+
+    conn._spawn = fake_spawn  # type: ignore[assignment]
+    await conn._reconnect()
+
+    assert conn.reconnects == 1
+    assert len(spawns) == 1
+    r = await conn.read(timeout=0.1)
+    assert r["events"][-1]["type"] == "reconnected"
+
+
+async def test_reconnect_retries_then_gives_up():
+    conn = _conn()
+    conn._reconnect_base_delay = 0
+    conn._max_reconnects = 3
+    attempts = []
+
+    async def always_fail():
+        attempts.append(1)
+        raise OSError("ssh down")
+
+    conn._spawn = always_fail  # type: ignore[assignment]
+    await conn._reconnect()
+
+    assert len(attempts) == 3
+    assert conn.reconnects == 0
+    r = await conn.read(timeout=0.1)
+    assert r["events"][-1]["type"] == "disconnected"
+
+
+async def test_close_suppresses_reconnect():
+    conn = _conn()
+    conn._reconnect_base_delay = 0
+    called = []
+
+    async def fake_spawn():
+        called.append(1)
+
+    conn._spawn = fake_spawn  # type: ignore[assignment]
+    await conn.close()  # sets _closing
+    await conn._reconnect()
+
+    assert called == []
+    assert conn.reconnects == 0
+
+
 # --- end-to-end against real tmux -------------------------------------------
 
 pytestmark_e2e = pytest.mark.skipif(
@@ -190,5 +246,69 @@ async def test_control_mode_end_to_end():
         _tool_json(await mcp.call_tool("tmux_stream_stop", {"stream_id": sid}))
         listed2 = _tool_json(await mcp.call_tool("tmux_stream_list", {}))
         assert all(s["stream_id"] != sid for s in listed2["streams"])
+    finally:
+        await runner.run(["kill-server"])
+
+
+@pytestmark_e2e
+async def test_stream_start_sets_client_size():
+    import asyncio
+
+    from mcp_tmux.runner import TmuxRunner
+    from mcp_tmux.server import build_server
+
+    runner = TmuxRunner(CONFIG)
+    caps = await runner.capabilities()
+    if not caps.has("refresh_client_size"):
+        await runner.run(["kill-server"])
+        pytest.skip("tmux too old for refresh-client -C")
+
+    mcp = build_server(config=CONFIG)
+    try:
+        # Session starts at 80x24; a sized control client should widen it.
+        await runner.run_checked(
+            ["new-session", "-d", "-s", "sz", "-x", "80", "-y", "24"]
+        )
+        start = _tool_json(
+            await mcp.call_tool(
+                "tmux_stream_start",
+                {"session": "sz", "width": 200, "height": 50},
+            )
+        )
+        sid = start["stream_id"]
+
+        async def window_width() -> int:
+            out = await runner.run_checked(
+                ["display-message", "-p", "-t", "sz", "#{window_width}"]
+            )
+            return int(out.strip())
+
+        for _ in range(20):
+            if await window_width() == 200:
+                break
+            await asyncio.sleep(0.1)
+        assert await window_width() == 200
+
+        # The size is reported in the stream listing.
+        listed = _tool_json(await mcp.call_tool("tmux_stream_list", {}))
+        info = next(s for s in listed["streams"] if s["stream_id"] == sid)
+        assert info["size"] == [200, 50]
+        assert info["reconnects"] == 0
+
+        # Resize narrower via the dedicated tool.
+        _tool_json(
+            await mcp.call_tool(
+                "tmux_stream_resize",
+                {"stream_id": sid, "width": 120, "height": 40},
+            )
+        )
+        for _ in range(20):
+            if await window_width() == 120:
+                break
+            await asyncio.sleep(0.1)
+        assert await window_width() == 120
+
+        # Stop the stream (suppresses auto-reconnect) before tearing down.
+        _tool_json(await mcp.call_tool("tmux_stream_stop", {"stream_id": sid}))
     finally:
         await runner.run(["kill-server"])

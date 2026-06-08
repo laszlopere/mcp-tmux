@@ -18,21 +18,55 @@ def register(mcp, runner) -> None:
     manager = ControlManager(runner)
 
     @mcp.tool()
-    async def tmux_stream_start(session: str, target: str | None = None) -> dict:
+    async def tmux_stream_start(
+        session: str,
+        target: str | None = None,
+        width: int | None = None,
+        height: int | None = None,
+    ) -> dict:
         """Open (or reuse) a control-mode stream attached to `session`.
 
         Starts a persistent `tmux -C attach -t <session>` connection that
         captures pane output and window/layout events. Idempotent per
         (target, session). Returns {"stream_id", "session", "target", "alive"};
         pass the stream_id to `tmux_stream_read`/`_send`/`_stop`.
+
+        Pass `width`/`height` (both, tmux 2.4+) to set the control client's size
+        via `refresh-client -C WxH` right after attach — otherwise it defaults to
+        80x24 and wraps `%output` for wider panes oddly. The size is re-applied
+        automatically if the connection drops and reconnects; `tmux_stream_resize`
+        changes it later. The connection also auto-reconnects on an unexpected
+        drop (e.g. a flaky SSH link), surfacing `reconnected`/`disconnected`
+        events in the stream.
         """
-        conn = await manager.start(session, target=target)
+        conn = await manager.start(
+            session, target=target, width=width, height=height
+        )
         return {
             "stream_id": conn.stream_id,
             "session": conn.session,
             "target": conn.target.name,
             "alive": conn.alive,
         }
+
+    @mcp.tool()
+    async def tmux_stream_resize(
+        stream_id: str, width: int, height: int
+    ) -> dict:
+        """Set a stream's control-client size (refresh-client -C WxH, tmux 2.4+).
+
+        Use this when pane output wraps at the wrong width — a control client
+        defaults to 80x24. The size sticks across auto-reconnects. Returns
+        {"stream_id", "width", "height"}.
+        """
+        conn = manager.get(stream_id)
+        caps = await runner.capabilities(conn.target.name)
+        if not caps.has("refresh_client_size"):
+            raise ValueError(
+                f"target tmux {caps.version_str} lacks refresh-client -C (needs 2.4+)"
+            )
+        await conn.refresh_size(width, height)
+        return {"stream_id": stream_id, "width": width, "height": height}
 
     @mcp.tool()
     async def tmux_stream_read(

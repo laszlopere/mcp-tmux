@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import time
 import uuid
 from collections import deque
 from dataclasses import dataclass
@@ -137,6 +138,8 @@ class ControlConnection:
         session: str,
         *,
         buffer_size: int = 5000,
+        reconnect: bool = True,
+        max_reconnects: int = 10,
     ):
         self.runner = runner
         self.target = target
@@ -144,6 +147,15 @@ class ControlConnection:
         self.stream_id = f"cm-{uuid.uuid4().hex[:8]}"
         self.alive = False
         self.cursor = 0  # server-side auto-advance read cursor
+        self.reconnect = reconnect
+        self.reconnects = 0  # successful auto-reconnects so far
+        self._max_reconnects = max_reconnects
+        self._reconnect_base_delay = 0.5  # seconds; doubles per attempt, capped
+        self._stability_window = 2.0  # a connection alive this long resets flaps
+        self._flaps = 0  # consecutive reconnects that died almost immediately
+        self._last_spawn_at = 0.0
+        self._closing = False  # set by close(): suppresses auto-reconnect
+        self._size: tuple[int, int] | None = None  # last requested client size
         self._buffer_size = buffer_size
         self._events: deque[Event] = deque(maxlen=buffer_size)
         self._last_seq = 0
@@ -160,6 +172,10 @@ class ControlConnection:
         return (self.target.key, self.session)
 
     async def start(self) -> None:
+        """Spawn the initial control client. Errors propagate to the caller."""
+        await self._spawn()
+
+    async def _spawn(self) -> None:
         argv = self.target.build_argv(
             ["-C", "attach", "-t", self.session], tmux_bin=self.runner.tmux_bin
         )
@@ -170,8 +186,20 @@ class ControlConnection:
             stderr=asyncio.subprocess.PIPE,
         )
         self.alive = True
+        self._last_spawn_at = time.monotonic()
         self._reader = asyncio.create_task(self._read_loop())
         self._stderr_reader = asyncio.create_task(self._drain_stderr())
+        if self._size is not None:
+            # Re-apply the client size on (re)connect, in the background so the
+            # reply doesn't block the reader/reconnect path.
+            w, h = self._size
+            asyncio.create_task(self._bg_refresh(w, h))
+
+    async def _bg_refresh(self, width: int, height: int) -> None:
+        try:
+            await self.send_command(f"refresh-client -C {width}x{height}")
+        except Exception:  # pragma: no cover - best-effort
+            pass
 
     async def _drain_stderr(self) -> None:
         assert self._proc and self._proc.stderr
@@ -205,6 +233,59 @@ class ControlConnection:
                             )
                         )
                 self._cond.notify_all()
+        # The stream dropped (process exited / EOF). Unless we're closing on
+        # purpose, try to transparently reconnect. This task drives the attempt
+        # and, on success, hands off to a fresh reader task spawned by _spawn().
+        if self._closing or not self.reconnect:
+            return
+        # Flap guard: a connection that stayed up a while gets a fresh budget;
+        # one that dies almost immediately counts as a flap, so a permanently
+        # broken target (e.g. the session is gone) stops after max_reconnects.
+        if time.monotonic() - self._last_spawn_at >= self._stability_window:
+            self._flaps = 0
+        else:
+            self._flaps += 1
+        if self._flaps > self._max_reconnects:
+            await self._emit_synthetic(
+                "disconnected", "connection unstable; giving up"
+            )
+            return
+        await self._reconnect()
+
+    async def _reconnect(self) -> None:
+        """Re-establish a dropped connection with capped exponential backoff.
+
+        Preserves the stream_id, event buffer, and sequence numbers so existing
+        cursors keep working. Emits a synthetic ``reconnected`` event on success
+        or ``disconnected`` after giving up, so long-pollers notice either way.
+        """
+        delay = self._reconnect_base_delay
+        for _ in range(self._max_reconnects):
+            if self._closing:
+                return
+            try:
+                await asyncio.sleep(delay)
+            except asyncio.CancelledError:  # pragma: no cover - shutdown
+                return
+            delay = min(delay * 2, 5.0)
+            if self._closing:
+                return
+            try:
+                await self._spawn()
+            except Exception:
+                continue
+            self.reconnects += 1
+            await self._emit_synthetic("reconnected", f"attempt {self.reconnects}")
+            return
+        await self._emit_synthetic("disconnected", "reconnect attempts exhausted")
+
+    async def _emit_synthetic(self, kind: str, data: str) -> None:
+        async with self._cond:
+            self._last_seq += 1
+            self._events.append(
+                Event(seq=self._last_seq, type=kind, raw="", data=data)
+            )
+            self._cond.notify_all()
 
     async def _handle_line(self, line: str) -> None:
         # --- command-reply framing (%begin .. %end/%error) -------------------
@@ -309,6 +390,16 @@ class ControlConnection:
             "lagged": lagged,
         }
 
+    async def refresh_size(self, width: int, height: int, timeout: float = 10.0) -> None:
+        """Set this control client's size (refresh-client -C WxH).
+
+        Records the size so it is re-applied automatically after a reconnect.
+        Without this a control client defaults to 80x24 and wraps ``%output``
+        oddly for wider panes.
+        """
+        self._size = (width, height)
+        await self.send_command(f"refresh-client -C {width}x{height}", timeout=timeout)
+
     def info(self) -> dict:
         panes = sorted({e.pane for e in self._events if e.pane})
         return {
@@ -319,10 +410,13 @@ class ControlConnection:
             "buffered": len(self._events),
             "last_seq": self._last_seq,
             "panes": panes,
+            "reconnects": self.reconnects,
+            "size": list(self._size) if self._size else None,
         }
 
     async def close(self) -> None:
         """Detach the control client (does not kill the session) and clean up."""
+        self._closing = True  # suppress auto-reconnect from the reader loop
         self.alive = False
         if self._proc and self._proc.returncode is None:
             try:
@@ -348,22 +442,36 @@ class ControlManager:
         self._by_key: dict[tuple[str, str], ControlConnection] = {}
 
     async def start(
-        self, session: str, target: str | None = None
+        self,
+        session: str,
+        target: str | None = None,
+        width: int | None = None,
+        height: int | None = None,
     ) -> ControlConnection:
         caps = await self.runner.capabilities(target)
         if not caps.has("control_mode"):
             raise ValueError(
                 f"target tmux {caps.version_str} does not support control mode (-C)"
             )
+        if (width is None) != (height is None):
+            raise ValueError("Provide both width and height, or neither.")
+        size_ok = caps.has("refresh_client_size")
+
+        async def apply_size(conn: ControlConnection) -> None:
+            if width and height and size_ok:
+                await conn.refresh_size(width, height)
+
         tgt = self.runner.resolve(target)
         key = (tgt.key, session)
         existing = self._by_key.get(key)
         if existing is not None and existing.alive:
+            await apply_size(existing)  # honor a resize on an idempotent reuse
             return existing
         if existing is not None:  # stale/dead entry; drop it
             self._forget(existing)
         conn = ControlConnection(self.runner, tgt, session)
         await conn.start()
+        await apply_size(conn)
         self._by_id[conn.stream_id] = conn
         self._by_key[key] = conn
         return conn

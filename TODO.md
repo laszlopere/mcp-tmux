@@ -137,12 +137,21 @@ High value:
 
 Streaming robustness:
 
-- [ ] **Client size on `tmux_stream_start`** — add `width`/`height` options that
-      issue `refresh-client -C <w>x<h>` (tmux 2.4+) after attach, so a control
-      client doesn't default to 80×24 and wrap `%output` oddly (observed on the
-      pipnode test). Consider a standalone `tmux_stream_resize` too.
-- [ ] Automatic reconnect on unexpected `%exit` — see the P3 follow-up note
-      above; turns a dropped SSH/control connection into transparent recovery.
+- [x] **Client size on `tmux_stream_start`** — `width`/`height` options issue
+      `refresh-client -C <w>x<h>` (gated on the new `refresh_client_size`
+      capability, 2.4+) right after attach, so a control client doesn't default
+      to 80×24 and wrap `%output` oddly. Added a standalone `tmux_stream_resize`
+      too; the size is recorded and re-applied automatically across reconnects,
+      and surfaced in `tmux_stream_list`. E2e test widens/narrows a window via
+      both paths.
+- [x] Automatic reconnect on unexpected `%exit` — `ControlConnection` now
+      auto-reconnects on an unexpected drop (EOF/`%exit`) with capped
+      exponential backoff, preserving stream_id / event buffer / sequence so
+      cursors keep working. Emits synthetic `reconnected` / `disconnected`
+      events; a flap guard (stability window + `max_reconnects`) stops retrying
+      a permanently-dead target; `close()` sets `_closing` to suppress it. 3
+      deterministic unit tests (success, give-up, close-suppresses) + the size
+      e2e. 75 passing.
 
 Small ergonomics:
 

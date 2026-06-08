@@ -31,6 +31,7 @@ _FEATURES: dict[str, tuple[int, int]] = {
     "send_keys_X": (2, 4),         # send-keys -X (drive copy-mode commands)
     "key_tables": (2, 1),          # bind/list/unbind-key -T <table> (vs -t)
     "respawn_env": (3, 0),         # respawn-pane/-window -e KEY=VAL
+    "refresh_client_size": (2, 4), # refresh-client -C WxH (set control client size)
 }
 
 _VERSION_RE = re.compile(r"(\d+)\.(\d+)")
