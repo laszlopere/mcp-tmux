@@ -7,9 +7,7 @@ from ..formats import CLIENT_FIELDS, FIELD_SEP
 
 def register(mcp, runner) -> None:
     @mcp.tool()
-    async def tmux_list_clients(
-        session: str | None = None, target: str | None = None
-    ) -> dict:
+    async def tmux_list_clients(session: str | None = None, target: str | None = None) -> dict:
         """List clients attached to the server.
 
         With `session`, lists only the clients attached to that session (-t).

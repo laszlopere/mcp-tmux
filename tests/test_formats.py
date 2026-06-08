@@ -54,10 +54,10 @@ def test_coerce_records_types_numbers_and_bools():
     raw = [{"id": "$0", "name": "main", "windows": "3", "attached": "1", "created": "1780905518"}]
     coerced = coerce_records(raw, SESSION_FIELDS, caps)
     rec = coerced[0]
-    assert rec["id"] == "$0"          # str stays str
+    assert rec["id"] == "$0"  # str stays str
     assert rec["name"] == "main"
-    assert rec["windows"] == 3        # int
-    assert rec["attached"] is True    # bool ("1" -> True)
+    assert rec["windows"] == 3  # int
+    assert rec["attached"] is True  # bool ("1" -> True)
     assert rec["created"] == 1780905518
 
 

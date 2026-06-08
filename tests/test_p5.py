@@ -15,9 +15,7 @@ import pytest
 from mcp_tmux.runner import TmuxRunner
 from mcp_tmux.server import build_server
 
-pytestmark = pytest.mark.skipif(
-    shutil.which("tmux") is None, reason="tmux not installed"
-)
+pytestmark = pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux not installed")
 
 CONFIG = {"defaults": {"socket_name": "mcp-tmux-p5", "timeout": 10}, "targets": {}}
 
@@ -35,9 +33,7 @@ def _tool_json(res):
 
 
 async def _history_size(runner, pane: str) -> int:
-    out = await runner.run_checked(
-        ["display-message", "-p", "-t", pane, "#{history_size}"]
-    )
+    out = await runner.run_checked(["display-message", "-p", "-t", pane, "#{history_size}"])
     return int(out.strip())
 
 
@@ -54,9 +50,7 @@ async def test_clear_history_wipes_scrollback(runner):
         await asyncio.sleep(0.1)
     assert await _history_size(runner, "clr") > 0
 
-    cleared = _tool_json(
-        await mcp.call_tool("tmux_clear_history", {"target_pane": "clr"})
-    )
+    cleared = _tool_json(await mcp.call_tool("tmux_clear_history", {"target_pane": "clr"}))
     assert cleared == {"cleared": True, "pane": "clr"}
 
     assert await _history_size(runner, "clr") == 0
@@ -72,9 +66,7 @@ async def test_clear_history_is_destructive(runner):
 
 
 async def _current_command(runner, pane: str) -> str:
-    out = await runner.run_checked(
-        ["display-message", "-p", "-t", pane, "#{pane_current_command}"]
-    )
+    out = await runner.run_checked(["display-message", "-p", "-t", pane, "#{pane_current_command}"])
     return out.strip()
 
 
@@ -103,9 +95,7 @@ async def test_respawn_pane_with_env(runner):
     if not caps.has("respawn_env"):
         pytest.skip("tmux too old for respawn -e")
     mcp = build_server(config=CONFIG)
-    await runner.run_checked(
-        ["new-session", "-d", "-s", "rspe", "-x", "80", "-y", "24"]
-    )
+    await runner.run_checked(["new-session", "-d", "-s", "rspe", "-x", "80", "-y", "24"])
 
     res = _tool_json(
         await mcp.call_tool(
@@ -197,9 +187,7 @@ async def test_unset_environment(runner):
     )
     assert unset == {"unset": "MCP_GONE", "global": False}
 
-    shown = _tool_json(
-        await mcp.call_tool("tmux_show_environment", {"session": "envu"})
-    )
+    shown = _tool_json(await mcp.call_tool("tmux_show_environment", {"session": "envu"}))
     assert "MCP_GONE" not in shown["environment"]
 
 
@@ -213,18 +201,14 @@ async def test_new_session_attach_or_create_is_idempotent(runner):
     mcp = build_server(config=CONFIG)
 
     first = _tool_json(
-        await mcp.call_tool(
-            "tmux_new_session", {"name": "aoc", "attach_or_create": True}
-        )
+        await mcp.call_tool("tmux_new_session", {"name": "aoc", "attach_or_create": True})
     )
     assert first["name"] == "aoc"
 
     # A second create-or-attach with the same name must not error; it reuses
     # the existing session (same session id).
     again = _tool_json(
-        await mcp.call_tool(
-            "tmux_new_session", {"name": "aoc", "attach_or_create": True}
-        )
+        await mcp.call_tool("tmux_new_session", {"name": "aoc", "attach_or_create": True})
     )
     assert again["name"] == "aoc"
     assert again["id"] == first["id"]
@@ -277,9 +261,7 @@ async def test_set_pane_title(runner):
     )
     assert res == {"pane": "ptitle", "title": "agent-pane-1"}
 
-    out = await runner.run_checked(
-        ["display-message", "-p", "-t", "ptitle", "#{pane_title}"]
-    )
+    out = await runner.run_checked(["display-message", "-p", "-t", "ptitle", "#{pane_title}"])
     assert out.strip() == "agent-pane-1"
 
     # And it surfaces through the curated listing.
@@ -293,17 +275,13 @@ async def test_last_window_switches_back(runner):
     # Creating a second window makes it active; window 0 becomes "last".
     await runner.run_checked(["new-window", "-t", "nav"])
     assert (
-        await runner.run_checked(
-            ["display-message", "-p", "-t", "nav", "#{window_index}"]
-        )
+        await runner.run_checked(["display-message", "-p", "-t", "nav", "#{window_index}"])
     ).strip() == "1"
 
     res = _tool_json(await mcp.call_tool("tmux_last_window", {"session": "nav"}))
     assert res == {"selected": "last"}
     assert (
-        await runner.run_checked(
-            ["display-message", "-p", "-t", "nav", "#{window_index}"]
-        )
+        await runner.run_checked(["display-message", "-p", "-t", "nav", "#{window_index}"])
     ).strip() == "0"
 
 
@@ -313,17 +291,13 @@ async def test_last_pane_switches_back(runner):
     # Splitting makes the new pane (index 1) active; pane 0 becomes "last".
     await runner.run_checked(["split-window", "-t", "navp"])
     assert (
-        await runner.run_checked(
-            ["display-message", "-p", "-t", "navp", "#{pane_index}"]
-        )
+        await runner.run_checked(["display-message", "-p", "-t", "navp", "#{pane_index}"])
     ).strip() == "1"
 
     res = _tool_json(await mcp.call_tool("tmux_last_pane", {"window": "navp"}))
     assert res == {"selected": "last"}
     assert (
-        await runner.run_checked(
-            ["display-message", "-p", "-t", "navp", "#{pane_index}"]
-        )
+        await runner.run_checked(["display-message", "-p", "-t", "navp", "#{pane_index}"])
     ).strip() == "0"
 
 
@@ -334,9 +308,7 @@ async def test_next_layout_changes_layout(runner):
 
     async def _layout() -> str:
         return (
-            await runner.run_checked(
-                ["display-message", "-p", "-t", "navl", "#{window_layout}"]
-            )
+            await runner.run_checked(["display-message", "-p", "-t", "navl", "#{window_layout}"])
         ).strip()
 
     before = await _layout()
@@ -351,11 +323,7 @@ async def test_save_buffer_writes_file(runner, tmp_path):
     await runner.run_checked(["set-buffer", "-b", "b1", "buffer-payload-XYZ"])
 
     out = tmp_path / "buf.txt"
-    res = _tool_json(
-        await mcp.call_tool(
-            "tmux_save_buffer", {"path": str(out), "name": "b1"}
-        )
-    )
+    res = _tool_json(await mcp.call_tool("tmux_save_buffer", {"path": str(out), "name": "b1"}))
     assert res == {"saved": str(out), "name": "b1", "appended": False}
     assert out.read_text() == "buffer-payload-XYZ"
 
@@ -366,11 +334,7 @@ async def test_load_buffer_reads_file(runner, tmp_path):
 
     src = tmp_path / "in.txt"
     src.write_text("loaded-content-ABC")
-    res = _tool_json(
-        await mcp.call_tool(
-            "tmux_load_buffer", {"path": str(src), "name": "lb"}
-        )
-    )
+    res = _tool_json(await mcp.call_tool("tmux_load_buffer", {"path": str(src), "name": "lb"}))
     assert res == {"loaded": str(src), "name": "lb"}
 
     back = await runner.run_checked(["show-buffer", "-b", "lb"])

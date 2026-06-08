@@ -24,13 +24,14 @@ Schema::
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
-try:  # Python 3.11+
+if sys.version_info >= (3, 11):
     import tomllib
-except ModuleNotFoundError:  # pragma: no cover - 3.10 fallback
-    import tomli as tomllib  # type: ignore[no-redef]
+else:  # pragma: no cover - 3.10 fallback
+    import tomli as tomllib
 
 
 DEFAULT_TIMEOUT = 15.0

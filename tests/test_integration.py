@@ -12,9 +12,7 @@ import pytest
 
 from mcp_tmux.runner import TmuxRunner
 
-pytestmark = pytest.mark.skipif(
-    shutil.which("tmux") is None, reason="tmux not installed"
-)
+pytestmark = pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux not installed")
 
 # Route every command to an isolated server via a default socket name.
 CONFIG = {"defaults": {"socket_name": "mcp-tmux-test", "timeout": 10}, "targets": {}}
@@ -96,9 +94,7 @@ async def test_capture_trim_via_tool(runner):
     assert content.splitlines()[-1].strip() != ""
 
     # Untrimmed keeps the padding (ends with blank lines).
-    res = await mcp.call_tool(
-        "tmux_capture_pane", {"target_pane": "trimtest", "trim": False}
-    )
+    res = await mcp.call_tool("tmux_capture_pane", {"target_pane": "trimtest", "trim": False})
     payload = res[0] if isinstance(res, tuple) else res
     raw = json.loads(payload[0].text)["content"]
     assert raw.endswith("\n")
@@ -120,9 +116,7 @@ async def test_wait_for_text_via_tool(runner):
     await runner.run_checked(["new-session", "-d", "-s", "waittest"])
 
     # Send a command that prints a marker after a short delay.
-    await runner.run_checked(
-        ["send-keys", "-t", "waittest", "-l", "sleep 0.3; echo READY-XYZ"]
-    )
+    await runner.run_checked(["send-keys", "-t", "waittest", "-l", "sleep 0.3; echo READY-XYZ"])
     await runner.run_checked(["send-keys", "-t", "waittest", "Enter"])
 
     res = await mcp.call_tool(

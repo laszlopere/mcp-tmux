@@ -16,7 +16,7 @@ Resolution rules for a target string:
 from __future__ import annotations
 
 import shlex
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 
@@ -60,8 +60,9 @@ class Target:
         tmux_argv = [tmux_bin, *self._tmux_global_flags(), *tmux_args]
         if not self.is_remote:
             return tmux_argv
+        assert self.host is not None  # is_remote == (host is not None)
         remote_cmd = shlex.join(tmux_argv)
-        return ["ssh", *self.ssh_options, self.host, remote_cmd]  # type: ignore[list-item]
+        return ["ssh", *self.ssh_options, self.host, remote_cmd]
 
 
 def resolve_target(target: str | None, config: dict[str, Any]) -> Target:

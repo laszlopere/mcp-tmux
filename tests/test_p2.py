@@ -15,9 +15,7 @@ import pytest
 from mcp_tmux.runner import TmuxRunner
 from mcp_tmux.server import build_server
 
-pytestmark = pytest.mark.skipif(
-    shutil.which("tmux") is None, reason="tmux not installed"
-)
+pytestmark = pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux not installed")
 
 CONFIG = {"defaults": {"socket_name": "mcp-tmux-p2", "timeout": 10}, "targets": {}}
 
@@ -69,9 +67,7 @@ async def test_break_and_join_pane_roundtrip(runner):
 
     # Join it back into the original window.
     joined = _tool_json(
-        await mcp.call_tool(
-            "tmux_join_pane", {"src": new_window, "dst": "bj:0", "select": False}
-        )
+        await mcp.call_tool("tmux_join_pane", {"src": new_window, "dst": "bj:0", "select": False})
     )
     assert joined["joined"] is True
 
@@ -81,14 +77,10 @@ async def test_find_window(runner):
     await runner.run_checked(["new-session", "-d", "-s", "fw"])
     await runner.run_checked(["new-window", "-t", "fw", "-n", "needle-haystack"])
 
-    found = _tool_json(
-        await mcp.call_tool("tmux_find_window", {"pattern": "needle"})
-    )
+    found = _tool_json(await mcp.call_tool("tmux_find_window", {"pattern": "needle"}))
     assert any(m["name"] == "needle-haystack" for m in found["matches"])
 
-    none = _tool_json(
-        await mcp.call_tool("tmux_find_window", {"pattern": "no-such-window-xyz"})
-    )
+    none = _tool_json(await mcp.call_tool("tmux_find_window", {"pattern": "no-such-window-xyz"}))
     assert none["matches"] == []
 
 
@@ -123,9 +115,7 @@ async def test_keys_bind_list_unbind(runner):
     listed = _tool_json(await mcp.call_tool("tmux_list_keys", {}))
     assert "F12" in listed["keys"]
 
-    _tool_json(
-        await mcp.call_tool("tmux_unbind_key", {"key": "F12", "root": True})
-    )
+    _tool_json(await mcp.call_tool("tmux_unbind_key", {"key": "F12", "root": True}))
 
 
 async def test_pipe_pane_to_file(runner, tmp_path):
@@ -151,9 +141,7 @@ async def test_pipe_pane_to_file(runner, tmp_path):
     assert "piped-XYZ" in logfile.read_text()
 
     # Stop piping (no command).
-    stopped = _tool_json(
-        await mcp.call_tool("tmux_pipe_pane", {"target_pane": "pp"})
-    )
+    stopped = _tool_json(await mcp.call_tool("tmux_pipe_pane", {"target_pane": "pp"}))
     assert stopped["piping"] is False
 
 
@@ -162,9 +150,7 @@ async def test_copy_mode_enter(runner):
     await runner.run_checked(["new-session", "-d", "-s", "cm"])
     _tool_json(await mcp.call_tool("tmux_copy_mode", {"target_pane": "cm"}))
     in_mode = (
-        await runner.run_checked(
-            ["display-message", "-p", "-t", "cm", "#{pane_in_mode}"]
-        )
+        await runner.run_checked(["display-message", "-p", "-t", "cm", "#{pane_in_mode}"])
     ).strip()
     assert in_mode == "1"
 

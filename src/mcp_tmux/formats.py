@@ -59,9 +59,7 @@ PANE_FIELDS = [
 Field = tuple[str, str, "str | None", str]
 
 
-def _active_fields(
-    fields: list[Field], caps: Capabilities | None
-) -> list[tuple[str, str, str]]:
+def _active_fields(fields: list[Field], caps: Capabilities | None) -> list[tuple[str, str, str]]:
     """Return active ``(key, var, kind)`` triples, dropping gated-out fields."""
     out: list[tuple[str, str, str]] = []
     for key, var, gate, kind in fields:
@@ -71,9 +69,7 @@ def _active_fields(
     return out
 
 
-def build_format(
-    fields: list[Field], caps: Capabilities | None = None
-) -> tuple[str, list[str]]:
+def build_format(fields: list[Field], caps: Capabilities | None = None) -> tuple[str, list[str]]:
     """Return ``(format_string, ordered_keys)`` for the active fields."""
     active = _active_fields(fields, caps)
     keys = [k for k, _, _ in active]

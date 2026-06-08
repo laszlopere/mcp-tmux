@@ -9,7 +9,6 @@ protocol using the MCP client SDK. Run from the repo root:
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 
 from mcp import ClientSession, StdioServerParameters
@@ -23,13 +22,9 @@ def _text(result) -> str:
 async def main() -> None:
     # Point the server at an isolated tmux socket so we never touch real sessions.
     env = dict(os.environ)
-    env["MCP_TMUX_CONFIG"] = os.path.join(
-        os.path.dirname(__file__), "isolated_config.toml"
-    )
+    env["MCP_TMUX_CONFIG"] = os.path.join(os.path.dirname(__file__), "isolated_config.toml")
 
-    params = StdioServerParameters(
-        command="python", args=["-m", "mcp_tmux"], env=env
-    )
+    params = StdioServerParameters(command="python", args=["-m", "mcp_tmux"], env=env)
 
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:

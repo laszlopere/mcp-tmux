@@ -29,9 +29,7 @@ def register(mcp, runner) -> None:
         return {"linked": True, "src": src, "dst": dst}
 
     @mcp.tool()
-    async def tmux_unlink_window(
-        window: str, target: str | None = None
-    ) -> dict:
+    async def tmux_unlink_window(window: str, target: str | None = None) -> dict:
         """Unlink a window (remove one of its links).
 
         Fails if the window is only linked once, unless it is not the last —
@@ -117,8 +115,7 @@ def register(mcp, runner) -> None:
         matches = [
             r
             for r in records
-            if needle in str(r.get("name", "")).lower()
-            or needle in str(r.get("title", "")).lower()
+            if needle in str(r.get("name", "")).lower() or needle in str(r.get("title", "")).lower()
         ]
         return {"matches": matches}
 

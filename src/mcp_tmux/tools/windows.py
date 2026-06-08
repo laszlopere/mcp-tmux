@@ -7,9 +7,7 @@ from ..formats import FIELD_SEP, WINDOW_FIELDS, parse_records
 
 def register(mcp, runner) -> None:
     @mcp.tool()
-    async def tmux_list_windows(
-        session: str | None = None, target: str | None = None
-    ) -> dict:
+    async def tmux_list_windows(session: str | None = None, target: str | None = None) -> dict:
         """List windows. With `session`, lists that session's windows; otherwise
         all windows on the server (-a)."""
         cmd = ["list-windows"]
@@ -61,9 +59,7 @@ def register(mcp, runner) -> None:
         return {"selected": window}
 
     @mcp.tool()
-    async def tmux_last_window(
-        session: str | None = None, target: str | None = None
-    ) -> dict:
+    async def tmux_last_window(session: str | None = None, target: str | None = None) -> dict:
         """Switch to the previously selected window (last-window).
 
         With `session` (-t), acts on that session; otherwise the current one.
@@ -76,9 +72,7 @@ def register(mcp, runner) -> None:
         return {"selected": "last"}
 
     @mcp.tool()
-    async def tmux_next_layout(
-        window: str | None = None, target: str | None = None
-    ) -> dict:
+    async def tmux_next_layout(window: str | None = None, target: str | None = None) -> dict:
         """Rotate a window to its next preset layout (next-layout).
 
         With `window` (-t), acts on that window; otherwise the current one.
@@ -91,27 +85,19 @@ def register(mcp, runner) -> None:
         return {"window": window}
 
     @mcp.tool()
-    async def tmux_rename_window(
-        window: str, new_name: str, target: str | None = None
-    ) -> dict:
+    async def tmux_rename_window(window: str, new_name: str, target: str | None = None) -> dict:
         """Rename a window."""
-        await runner.run_checked(
-            ["rename-window", "-t", window, new_name], target=target
-        )
+        await runner.run_checked(["rename-window", "-t", window, new_name], target=target)
         return {"renamed": True, "name": new_name}
 
     @mcp.tool()
-    async def tmux_move_window(
-        src: str, dst: str, target: str | None = None
-    ) -> dict:
+    async def tmux_move_window(src: str, dst: str, target: str | None = None) -> dict:
         """Move/renumber a window from `src` to `dst` (e.g. "sess:5")."""
         await runner.run_checked(["move-window", "-s", src, "-t", dst], target=target)
         return {"moved": True, "src": src, "dst": dst}
 
     @mcp.tool()
-    async def tmux_swap_window(
-        src: str, dst: str, target: str | None = None
-    ) -> dict:
+    async def tmux_swap_window(src: str, dst: str, target: str | None = None) -> dict:
         """Swap two windows."""
         await runner.run_checked(["swap-window", "-s", src, "-t", dst], target=target)
         return {"swapped": True, "src": src, "dst": dst}

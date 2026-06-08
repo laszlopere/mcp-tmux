@@ -65,9 +65,7 @@ def register(mcp, runner) -> None:
         return {"selected": target_pane}
 
     @mcp.tool()
-    async def tmux_last_pane(
-        window: str | None = None, target: str | None = None
-    ) -> dict:
+    async def tmux_last_pane(window: str | None = None, target: str | None = None) -> dict:
         """Switch to the previously active pane (last-pane).
 
         With `window` (-t), acts on that window; otherwise the current one.
@@ -137,9 +135,7 @@ def register(mcp, runner) -> None:
         return {"killed": True, "pane": target_pane}
 
     @mcp.tool()
-    async def tmux_clear_history(
-        target_pane: str | None = None, target: str | None = None
-    ) -> dict:
+    async def tmux_clear_history(target_pane: str | None = None, target: str | None = None) -> dict:
         """Wipe a pane's scrollback history (clear-history -t pane).
 
         Use this before a `tmux_send_keys` / `tmux_run` so a subsequent

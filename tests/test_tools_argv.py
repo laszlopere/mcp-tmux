@@ -160,12 +160,26 @@ async def test_new_session_full_argv():
         height=40,
         env={"FOO": "bar"},
     )
-    assert fr.checked == [[
-        "new-session", "-d", "-s", "dev", "-c", "/srv", "-x", "120", "-y", "40",
-        "-e", "FOO=bar",
-        "-P", "-F", f"#{{session_id}}{SEP}#{{session_name}}",
-        "htop",
-    ]]
+    assert fr.checked == [
+        [
+            "new-session",
+            "-d",
+            "-s",
+            "dev",
+            "-c",
+            "/srv",
+            "-x",
+            "120",
+            "-y",
+            "40",
+            "-e",
+            "FOO=bar",
+            "-P",
+            "-F",
+            f"#{{session_id}}{SEP}#{{session_name}}",
+            "htop",
+        ]
+    ]
     assert res == {"id": "$1", "name": "dev"}
 
 
@@ -181,10 +195,15 @@ async def test_new_session_attach_or_create_reuses_existing():
     res = await _tools(fr)["tmux_new_session"](name="dev", attach_or_create=True)
     # has-session probe via run, then display-message via run_checked; no new-session.
     assert fr.calls[0] == ("run", ["has-session", "-t", "dev"], None)
-    assert fr.checked == [[
-        "display-message", "-p", "-t", "dev",
-        f"#{{session_id}}{SEP}#{{session_name}}",
-    ]]
+    assert fr.checked == [
+        [
+            "display-message",
+            "-p",
+            "-t",
+            "dev",
+            f"#{{session_id}}{SEP}#{{session_name}}",
+        ]
+    ]
     assert not any("new-session" in a for a in fr.argvs)
     assert res == {"id": "$7", "name": "dev"}
 
@@ -224,14 +243,28 @@ async def test_list_windows_scopes():
 async def test_new_window_argv():
     fr = FakeRunner(output=f"@3{SEP}2{SEP}logs")
     res = await _tools(fr)["tmux_new_window"](
-        session="dev", name="logs", start_directory="/var/log",
-        command="tail -f x", select=False,
+        session="dev",
+        name="logs",
+        start_directory="/var/log",
+        command="tail -f x",
+        select=False,
     )
-    assert fr.checked == [[
-        "new-window", "-d", "-t", "dev", "-n", "logs", "-c", "/var/log",
-        "-P", "-F", f"#{{window_id}}{SEP}#{{window_index}}{SEP}#{{window_name}}",
-        "tail -f x",
-    ]]
+    assert fr.checked == [
+        [
+            "new-window",
+            "-d",
+            "-t",
+            "dev",
+            "-n",
+            "logs",
+            "-c",
+            "/var/log",
+            "-P",
+            "-F",
+            f"#{{window_id}}{SEP}#{{window_index}}{SEP}#{{window_name}}",
+            "tail -f x",
+        ]
+    ]
     assert res == {"id": "@3", "index": "2", "name": "logs"}
 
 
@@ -264,12 +297,25 @@ async def test_move_swap_kill_window_argv():
 async def test_respawn_window_argv_with_env():
     fr = FakeRunner(version="3.0")
     res = await _tools(fr)["tmux_respawn_window"](
-        window="dev:0", command="server", kill=True,
-        start_directory="/srv", env={"K": "V"},
+        window="dev:0",
+        command="server",
+        kill=True,
+        start_directory="/srv",
+        env={"K": "V"},
     )
-    assert fr.checked == [[
-        "respawn-window", "-k", "-c", "/srv", "-e", "K=V", "-t", "dev:0", "server",
-    ]]
+    assert fr.checked == [
+        [
+            "respawn-window",
+            "-k",
+            "-c",
+            "/srv",
+            "-e",
+            "K=V",
+            "-t",
+            "dev:0",
+            "server",
+        ]
+    ]
     assert res == {"respawned": True, "window": "dev:0"}
 
 
@@ -300,13 +346,30 @@ async def test_list_panes_scopes():
 async def test_split_window_argv():
     fr = FakeRunner(output=f"%5{SEP}1")
     res = await _tools(fr)["tmux_split_window"](
-        target_pane="%1", vertical=True, start_directory="/srv",
-        command="bash", percentage=30, select=False,
+        target_pane="%1",
+        vertical=True,
+        start_directory="/srv",
+        command="bash",
+        percentage=30,
+        select=False,
     )
-    assert fr.checked == [[
-        "split-window", "-v", "-d", "-t", "%1", "-c", "/srv", "-p", "30",
-        "-P", "-F", f"#{{pane_id}}{SEP}#{{pane_index}}", "bash",
-    ]]
+    assert fr.checked == [
+        [
+            "split-window",
+            "-v",
+            "-d",
+            "-t",
+            "%1",
+            "-c",
+            "/srv",
+            "-p",
+            "30",
+            "-P",
+            "-F",
+            f"#{{pane_id}}{SEP}#{{pane_index}}",
+            "bash",
+        ]
+    ]
     assert res == {"id": "%5", "index": "1"}
 
 
@@ -408,9 +471,20 @@ async def test_capture_pane_full_argv_and_trim():
     res = await _tools(fr)["tmux_capture_pane"](
         target_pane="%1", start=-100, end=-1, escapes=True, join=True
     )
-    assert fr.checked == [[
-        "capture-pane", "-p", "-t", "%1", "-e", "-J", "-S", "-100", "-E", "-1",
-    ]]
+    assert fr.checked == [
+        [
+            "capture-pane",
+            "-p",
+            "-t",
+            "%1",
+            "-e",
+            "-J",
+            "-S",
+            "-100",
+            "-E",
+            "-1",
+        ]
+    ]
     assert res == {"content": "line1\nline2"}  # trailing blank lines trimmed
 
 
@@ -431,9 +505,7 @@ async def test_capture_pane_gates_escape_and_join_on_old_tmux():
 )
 async def test_set_option_scope_flags(scope, flag):
     fr = FakeRunner()
-    await _tools(fr)["tmux_set_option"](
-        name="status", value="on", scope=scope, target_entity="dev"
-    )
+    await _tools(fr)["tmux_set_option"](name="status", value="on", scope=scope, target_entity="dev")
     expected = ["set-option"]
     if flag:
         expected.append(flag)
@@ -494,9 +566,7 @@ async def test_list_buffers_parse():
 
 async def test_set_environment_value():
     fr = FakeRunner()
-    res = await _tools(fr)["tmux_set_environment"](
-        name="FOO", value="bar", session="dev"
-    )
+    res = await _tools(fr)["tmux_set_environment"](name="FOO", value="bar", session="dev")
     assert fr.checked == [["set-environment", "-t", "dev", "FOO", "bar"]]
     assert res == {"set": "FOO", "value": "bar", "global": False}
 
@@ -555,9 +625,7 @@ async def test_display_message_argv():
     res = await _tools(fr)["tmux_display_message"](
         message="hi", target_client="/dev/pts/0", target_pane="%1"
     )
-    assert fr.checked == [
-        ["display-message", "-c", "/dev/pts/0", "-t", "%1", "hi"]
-    ]
+    assert fr.checked == [["display-message", "-c", "/dev/pts/0", "-t", "%1", "hi"]]
     assert res == {"displayed": True}
 
 
@@ -579,13 +647,20 @@ async def test_link_unlink_window_argv():
 
 async def test_break_pane_argv():
     fr = FakeRunner(output=f"@9{SEP}3{SEP}out")
-    res = await _tools(fr)["tmux_break_pane"](
-        target_pane="%1", window_name="out", select=False
-    )
-    assert fr.checked == [[
-        "break-pane", "-s", "%1", "-d", "-n", "out",
-        "-P", "-F", f"#{{window_id}}{SEP}#{{window_index}}{SEP}#{{window_name}}",
-    ]]
+    res = await _tools(fr)["tmux_break_pane"](target_pane="%1", window_name="out", select=False)
+    assert fr.checked == [
+        [
+            "break-pane",
+            "-s",
+            "%1",
+            "-d",
+            "-n",
+            "out",
+            "-P",
+            "-F",
+            f"#{{window_id}}{SEP}#{{window_index}}{SEP}#{{window_name}}",
+        ]
+    ]
     assert res == {"id": "@9", "index": "3", "name": "out"}
 
 
@@ -594,9 +669,19 @@ async def test_join_pane_argv():
     await _tools(fr)["tmux_join_pane"](
         src="%1", dst="%2", vertical=True, percentage=40, select=False
     )
-    assert fr.checked == [[
-        "join-pane", "-v", "-s", "%1", "-t", "%2", "-d", "-p", "40",
-    ]]
+    assert fr.checked == [
+        [
+            "join-pane",
+            "-v",
+            "-s",
+            "%1",
+            "-t",
+            "%2",
+            "-d",
+            "-p",
+            "40",
+        ]
+    ]
 
 
 async def test_find_window_filters_records():
@@ -644,12 +729,25 @@ async def test_list_keys_table_flag_modern_vs_old():
 async def test_bind_key_argv():
     fr = FakeRunner(version="2.1")
     res = await _tools(fr)["tmux_bind_key"](
-        key="C-l", command=["new-window", "-n", "logs"],
-        table="prefix", repeat=True, root=True,
+        key="C-l",
+        command=["new-window", "-n", "logs"],
+        table="prefix",
+        repeat=True,
+        root=True,
     )
-    assert fr.checked == [[
-        "bind-key", "-r", "-n", "-T", "prefix", "C-l", "new-window", "-n", "logs",
-    ]]
+    assert fr.checked == [
+        [
+            "bind-key",
+            "-r",
+            "-n",
+            "-T",
+            "prefix",
+            "C-l",
+            "new-window",
+            "-n",
+            "logs",
+        ]
+    ]
     assert res == {"bound": "C-l"}
 
 
@@ -693,9 +791,7 @@ async def test_copy_mode_enter_and_exit():
 
 async def test_copy_scroll_repeats_command():
     fr = FakeRunner(version="2.4")
-    res = await _tools(fr)["tmux_copy_scroll"](
-        target_pane="%1", direction="page-up", amount=3
-    )
+    res = await _tools(fr)["tmux_copy_scroll"](target_pane="%1", direction="page-up", amount=3)
     assert fr.checked == [
         ["copy-mode", "-t", "%1"],
         ["send-keys", "-X", "-t", "%1", "page-up"],
@@ -707,9 +803,7 @@ async def test_copy_scroll_repeats_command():
 
 async def test_copy_scroll_top_ignores_amount():
     fr = FakeRunner(version="2.4")
-    res = await _tools(fr)["tmux_copy_scroll"](
-        target_pane="%1", direction="top", amount=9
-    )
+    res = await _tools(fr)["tmux_copy_scroll"](target_pane="%1", direction="top", amount=9)
     assert fr.checked == [
         ["copy-mode", "-t", "%1"],
         ["send-keys", "-X", "-t", "%1", "history-top"],
@@ -745,9 +839,7 @@ async def test_copy_mode_requires_2_4():
 
 async def test_set_hook_argv():
     fr = FakeRunner()
-    await _tools(fr)["tmux_set_hook"](
-        hook="pane-died", command='display "gone"', global_=True
-    )
+    await _tools(fr)["tmux_set_hook"](hook="pane-died", command='display "gone"', global_=True)
     assert fr.checked == [["set-hook", "-g", "pane-died", 'display "gone"']]
 
 
@@ -774,9 +866,7 @@ async def test_show_hooks_parse():
 async def test_run_shell_argv():
     fr = FakeRunner()
     fr.run_result = TmuxResult("out", "", 0)
-    res = await _tools(fr)["tmux_run_shell"](
-        command="echo hi", background=True, target_pane="%1"
-    )
+    res = await _tools(fr)["tmux_run_shell"](command="echo hi", background=True, target_pane="%1")
     assert fr.calls[-1] == ("run", ["run-shell", "-b", "-t", "%1", "echo hi"], None)
     assert res == {"output": "out", "exit_code": 0}
 
@@ -784,12 +874,22 @@ async def test_run_shell_argv():
 async def test_if_shell_argv():
     fr = FakeRunner()
     await _tools(fr)["tmux_if_shell"](
-        condition="test -f /x", if_command='display yes',
-        else_command='display no', background=True, is_format=True,
+        condition="test -f /x",
+        if_command="display yes",
+        else_command="display no",
+        background=True,
+        is_format=True,
     )
-    assert fr.checked == [[
-        "if-shell", "-b", "-F", "test -f /x", "display yes", "display no",
-    ]]
+    assert fr.checked == [
+        [
+            "if-shell",
+            "-b",
+            "-F",
+            "test -f /x",
+            "display yes",
+            "display no",
+        ]
+    ]
 
 
 # ---------------------------------------------------------------------------

@@ -12,14 +12,12 @@ async def _table_flag(runner, table: str | None, target: str | None) -> list[str
     if not table:
         return []
     caps = await runner.capabilities(target)
-    return (["-T", table] if caps.has("key_tables") else ["-t", table])
+    return ["-T", table] if caps.has("key_tables") else ["-t", table]
 
 
 def register(mcp, runner) -> None:
     @mcp.tool()
-    async def tmux_list_keys(
-        table: str | None = None, target: str | None = None
-    ) -> dict:
+    async def tmux_list_keys(table: str | None = None, target: str | None = None) -> dict:
         """List key bindings, optionally restricted to one key `table` (e.g.
         "prefix", "root", "copy-mode"). Returns the raw bindings as
         {"keys": <text>, "lines": [...]} — one `bind-key ...` line each."""

@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.6", "mypy>=1.11"]
 
 [project.scripts]
 mcp-tmux = "mcp_tmux.__main__:main"
@@ -28,3 +28,23 @@ packages = ["src/mcp_tmux"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+
+# `tomli` is the 3.10-only fallback for the stdlib `tomllib` (API-identical) and
+# isn't present when type-checking on 3.11+; ignore its missing stubs.
+[[tool.mypy.overrides]]
+module = "tomli"
+ignore_missing_imports = true

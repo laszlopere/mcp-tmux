@@ -18,22 +18,22 @@ MIN_SUPPORTED = (1, 8)
 # pick the version where the variable/flag is reliably documented.
 _FEATURES: dict[str, tuple[int, int]] = {
     # format variables
-    "pane_current_path": (1, 9),   # pane_current_path format variable
+    "pane_current_path": (1, 9),  # pane_current_path format variable
     "session_activity": (2, 1),
     "window_active_clients": (3, 1),
     "pane_pid": (1, 8),
     "session_created": (1, 8),
-    "client_name": (2, 4),         # client_name format var (else use client_tty)
+    "client_name": (2, 4),  # client_name format var (else use client_tty)
     # flags / commands
-    "capture_join": (1, 8),        # capture-pane -J (rejoin wrapped lines)
-    "capture_escapes": (1, 8),     # capture-pane -e (include escape sequences)
-    "control_mode": (1, 8),        # tmux -C
-    "send_keys_X": (2, 4),         # send-keys -X (drive copy-mode commands)
-    "key_tables": (2, 1),          # bind/list/unbind-key -T <table> (vs -t)
-    "respawn_env": (3, 0),         # respawn-pane/-window -e KEY=VAL
-    "new_session_env": (3, 0),     # new-session -e KEY=VAL
-    "pane_title": (2, 6),          # select-pane -T <title> (set pane title)
-    "refresh_client_size": (2, 4), # refresh-client -C WxH (set control client size)
+    "capture_join": (1, 8),  # capture-pane -J (rejoin wrapped lines)
+    "capture_escapes": (1, 8),  # capture-pane -e (include escape sequences)
+    "control_mode": (1, 8),  # tmux -C
+    "send_keys_X": (2, 4),  # send-keys -X (drive copy-mode commands)
+    "key_tables": (2, 1),  # bind/list/unbind-key -T <table> (vs -t)
+    "respawn_env": (3, 0),  # respawn-pane/-window -e KEY=VAL
+    "new_session_env": (3, 0),  # new-session -e KEY=VAL
+    "pane_title": (2, 6),  # select-pane -T <title> (set pane title)
+    "refresh_client_size": (2, 4),  # refresh-client -C WxH (set control client size)
 }
 
 _VERSION_RE = re.compile(r"(\d+)\.(\d+)")
@@ -61,7 +61,7 @@ class Capabilities:
     version: tuple[int, int]
 
     @classmethod
-    def from_output(cls, raw: str) -> "Capabilities":
+    def from_output(cls, raw: str) -> Capabilities:
         return cls(raw=raw.strip(), version=parse_version(raw))
 
     @property

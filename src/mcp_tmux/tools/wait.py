@@ -76,9 +76,17 @@ def register(mcp, runner) -> None:
         while True:
             content = await capture_text(runner, target_pane, target=target, start=start)
             if match(content):
-                return {"matched": True, "elapsed": round(time.monotonic() - t0, 3), "content": content}
+                return {
+                    "matched": True,
+                    "elapsed": round(time.monotonic() - t0, 3),
+                    "content": content,
+                }
             if time.monotonic() >= deadline:
-                return {"matched": False, "elapsed": round(time.monotonic() - t0, 3), "content": content}
+                return {
+                    "matched": False,
+                    "elapsed": round(time.monotonic() - t0, 3),
+                    "content": content,
+                }
             await asyncio.sleep(poll_interval)
 
     @mcp.tool()
@@ -134,20 +142,14 @@ def register(mcp, runner) -> None:
         end = f"__MCP_END_{tok}__"
         # printf the BEG marker, run the command, then printf END + its $?.
         line = f"printf '%s\\n' {beg}; {command}; printf '%s %d\\n' {end} \"$?\""
-        await runner.run_checked(
-            ["send-keys", "-t", target_pane, "-l", line], target=target
-        )
-        await runner.run_checked(
-            ["send-keys", "-t", target_pane, "Enter"], target=target
-        )
+        await runner.run_checked(["send-keys", "-t", target_pane, "-l", line], target=target)
+        await runner.run_checked(["send-keys", "-t", target_pane, "Enter"], target=target)
 
         t0 = time.monotonic()
         deadline = t0 + timeout
         content = ""
         while True:
-            content = await capture_text(
-                runner, target_pane, target=target, start=-abs(history)
-            )
+            content = await capture_text(runner, target_pane, target=target, start=-abs(history))
             found = _extract_run_output(content, beg, end)
             if found is not None:
                 exit_code, output = found

@@ -1,5 +1,4 @@
 import pytest
-
 from mcp.server.fastmcp.exceptions import ToolError
 
 from mcp_tmux.runner import TmuxError

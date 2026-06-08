@@ -64,16 +64,14 @@ async def _run_full_workflow(mcp, *, target, session, owns_session) -> None:
     # Remember the session's active window so we can restore a borrowed session.
     orig_active = None
     if not owns_session:
-        orig_active = (
-            await t("tmux_query", {"format": "#{window_id}", "target_pane": session})
-        )["value"]
+        orig_active = (await t("tmux_query", {"format": "#{window_id}", "target_pane": session}))[
+            "value"
+        ]
 
     wid = None
     try:
         # --- window / pane plumbing -----------------------------------------
-        win = await t(
-            "tmux_new_window", {"session": session, "name": "functest", "select": True}
-        )
+        win = await t("tmux_new_window", {"session": session, "name": "functest", "select": True})
         assert win["name"] == "functest" and win["id"]
         wid = win["id"]
 
@@ -134,9 +132,7 @@ async def _run_full_workflow(mcp, *, target, session, owns_session) -> None:
                     break
             assert "STREAM-MARKER-99" in seen
 
-            reply = await t0(
-                "tmux_stream_send", {"stream_id": sid, "command": "list-windows"}
-            )
+            reply = await t0("tmux_stream_send", {"stream_id": sid, "command": "list-windows"})
             assert "(active)" in reply["reply"]
 
             listed = await t0("tmux_stream_list", {})
@@ -171,11 +167,7 @@ async def test_functional_local():
     mcp = build_server(config=LOCAL_CONFIG)
     session = "functest-local"
     try:
-        created = _js(
-            await mcp.call_tool(
-                "tmux_new_session", {"name": session, "detached": True}
-            )
-        )
+        created = _js(await mcp.call_tool("tmux_new_session", {"name": session, "detached": True}))
         assert created["name"] == session
         await _run_full_workflow(mcp, target=None, session=session, owns_session=True)
     finally:
@@ -183,9 +175,7 @@ async def test_functional_local():
         await runner.run(["kill-server"])
 
 
-@pytest.mark.skipif(
-    not REMOTE_TARGET, reason="set MCP_TMUX_FUNC_TARGET to run the remote workflow"
-)
+@pytest.mark.skipif(not REMOTE_TARGET, reason="set MCP_TMUX_FUNC_TARGET to run the remote workflow")
 async def test_functional_remote():
     config = {"defaults": {"timeout": 25}, "targets": {}}
     runner = TmuxRunner(config)
@@ -203,9 +193,7 @@ async def test_functional_remote():
                 )
             )
             created = True
-        await _run_full_workflow(
-            mcp, target=target, session=session, owns_session=owns_session
-        )
+        await _run_full_workflow(mcp, target=target, session=session, owns_session=owns_session)
     finally:
         # SAFETY: never kill the remote server. Only kill a session we created.
         if created:

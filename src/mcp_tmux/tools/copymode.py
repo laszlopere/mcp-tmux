@@ -73,16 +73,12 @@ def register(mcp, runner) -> None:
         """
         cmd = _SCROLL.get(direction)
         if cmd is None:
-            raise ValueError(
-                "direction must be one of: " + ", ".join(_SCROLL)
-            )
+            raise ValueError("direction must be one of: " + ", ".join(_SCROLL))
         await _require_X(runner, target)
         await runner.run_checked(["copy-mode", "-t", target_pane], target=target)
         reps = 1 if direction in ("top", "bottom") else max(1, amount)
         for _ in range(reps):
-            await runner.run_checked(
-                ["send-keys", "-X", "-t", target_pane, cmd], target=target
-            )
+            await runner.run_checked(["send-keys", "-X", "-t", target_pane, cmd], target=target)
         return {"scrolled": direction, "amount": reps, "pane": target_pane}
 
     @mcp.tool()

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from ..formats import FIELD_SEP, SESSION_FIELDS, parse_records
 
 
@@ -49,7 +51,10 @@ def register(mcp, runner) -> None:
             if exists.ok:
                 out = await runner.run_checked(
                     [
-                        "display-message", "-p", "-t", name,
+                        "display-message",
+                        "-p",
+                        "-t",
+                        name,
                         f"#{{session_id}}{FIELD_SEP}#{{session_name}}",
                     ],
                     target=target,
@@ -81,19 +86,15 @@ def register(mcp, runner) -> None:
             args.append(command)
         out = await runner.run_checked(args, target=target)
         rec = parse_records(out, ["id", "name"])
-        result = rec[0] if rec else {"id": "", "name": name or ""}
+        result: dict[str, Any] = rec[0] if rec else {"id": "", "name": name or ""}
         if notes:
             result["notes"] = notes
         return result
 
     @mcp.tool()
-    async def tmux_rename_session(
-        session: str, new_name: str, target: str | None = None
-    ) -> dict:
+    async def tmux_rename_session(session: str, new_name: str, target: str | None = None) -> dict:
         """Rename a session."""
-        await runner.run_checked(
-            ["rename-session", "-t", session, new_name], target=target
-        )
+        await runner.run_checked(["rename-session", "-t", session, new_name], target=target)
         return {"renamed": True, "name": new_name}
 
     @mcp.tool()

@@ -39,9 +39,7 @@ def register(mcp, runner) -> None:
         drop (e.g. a flaky SSH link), surfacing `reconnected`/`disconnected`
         events in the stream.
         """
-        conn = await manager.start(
-            session, target=target, width=width, height=height
-        )
+        conn = await manager.start(session, target=target, width=width, height=height)
         return {
             "stream_id": conn.stream_id,
             "session": conn.session,
@@ -50,9 +48,7 @@ def register(mcp, runner) -> None:
         }
 
     @mcp.tool()
-    async def tmux_stream_resize(
-        stream_id: str, width: int, height: int
-    ) -> dict:
+    async def tmux_stream_resize(stream_id: str, width: int, height: int) -> dict:
         """Set a stream's control-client size (refresh-client -C WxH, tmux 2.4+).
 
         Use this when pane output wraps at the wrong width — a control client
@@ -62,9 +58,7 @@ def register(mcp, runner) -> None:
         conn = manager.get(stream_id)
         caps = await runner.capabilities(conn.target.name)
         if not caps.has("refresh_client_size"):
-            raise ValueError(
-                f"target tmux {caps.version_str} lacks refresh-client -C (needs 2.4+)"
-            )
+            raise ValueError(f"target tmux {caps.version_str} lacks refresh-client -C (needs 2.4+)")
         await conn.refresh_size(width, height)
         return {"stream_id": stream_id, "width": width, "height": height}
 
@@ -102,9 +96,7 @@ def register(mcp, runner) -> None:
         )
 
     @mcp.tool()
-    async def tmux_stream_send(
-        stream_id: str, command: str, timeout: float = 10.0
-    ) -> dict:
+    async def tmux_stream_send(stream_id: str, command: str, timeout: float = 10.0) -> dict:
         """Run a tmux command over the stream's control connection.
 
         `command` is a tmux command line (no leading "tmux"), e.g.

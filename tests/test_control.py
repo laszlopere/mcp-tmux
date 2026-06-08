@@ -177,9 +177,7 @@ async def test_close_suppresses_reconnect():
 
 # --- end-to-end against real tmux -------------------------------------------
 
-pytestmark_e2e = pytest.mark.skipif(
-    shutil.which("tmux") is None, reason="tmux not installed"
-)
+pytestmark_e2e = pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux not installed")
 
 CONFIG = {"defaults": {"socket_name": "mcp-tmux-cm", "timeout": 10}, "targets": {}}
 
@@ -201,16 +199,12 @@ async def test_control_mode_end_to_end():
     try:
         await runner.run_checked(["new-session", "-d", "-s", "strm", "-x", "80", "-y", "24"])
 
-        start = _tool_json(
-            await mcp.call_tool("tmux_stream_start", {"session": "strm"})
-        )
+        start = _tool_json(await mcp.call_tool("tmux_stream_start", {"session": "strm"}))
         sid = start["stream_id"]
         assert start["alive"] is True
 
         # Idempotent: same (target, session) reuses the connection.
-        again = _tool_json(
-            await mcp.call_tool("tmux_stream_start", {"session": "strm"})
-        )
+        again = _tool_json(await mcp.call_tool("tmux_stream_start", {"session": "strm"}))
         assert again["stream_id"] == sid
 
         # Trigger pane output and watch it arrive as %output events.
@@ -232,9 +226,7 @@ async def test_control_mode_end_to_end():
 
         # Send a command through the control connection and read its reply.
         rep = _tool_json(
-            await mcp.call_tool(
-                "tmux_stream_send", {"stream_id": sid, "command": "list-windows"}
-            )
+            await mcp.call_tool("tmux_stream_send", {"stream_id": sid, "command": "list-windows"})
         )
         assert "(active)" in rep["reply"]
 
@@ -266,9 +258,7 @@ async def test_stream_start_sets_client_size():
     mcp = build_server(config=CONFIG)
     try:
         # Session starts at 80x24; a sized control client should widen it.
-        await runner.run_checked(
-            ["new-session", "-d", "-s", "sz", "-x", "80", "-y", "24"]
-        )
+        await runner.run_checked(["new-session", "-d", "-s", "sz", "-x", "80", "-y", "24"])
         start = _tool_json(
             await mcp.call_tool(
                 "tmux_stream_start",
@@ -278,9 +268,7 @@ async def test_stream_start_sets_client_size():
         sid = start["stream_id"]
 
         async def window_width() -> int:
-            out = await runner.run_checked(
-                ["display-message", "-p", "-t", "sz", "#{window_width}"]
-            )
+            out = await runner.run_checked(["display-message", "-p", "-t", "sz", "#{window_width}"])
             return int(out.strip())
 
         for _ in range(20):

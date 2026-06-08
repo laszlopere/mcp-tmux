@@ -193,7 +193,13 @@ Small ergonomics:
 [ ] 4.2. **tmux version-matrix CI** — run integration tests in containers against
       tmux 1.8 / 2.x / 3.x to prove the 1.8+ universality claim and catch
       format-var/flag drift.
-[ ] 4.3. **Lint & types** — add `ruff` + `mypy`; fix the few `# type: ignore`s.
+[x] 4.3. **Lint & types** — `ruff` (E,F,I,W,UP,B; line-length 100) and `mypy`
+      (`python_version=3.10`, `warn_unused_ignores`, `no_implicit_optional`,
+      `files=["src"]`) configured in `pyproject.toml`; both in the `dev` extra.
+      All 7 `# type: ignore`s in `src/` removed by real narrowing (`assert` after
+      `is_remote`/keys/cursor guards; `sys.version_info` tomllib branch; typed the
+      session result dict) — mypy is clean on 3.10 and 3.12 with no ignores. Repo
+      `ruff format`ted; `ruff check .` and `mypy` both pass.
 [x] 4.4. **Packaging** — `uv.lock` committed (uv 0.11.19); `uv build` produces
       sdist+wheel; `python_requires` smoke on a clean 3.10 env passes (import,
       `build_server`, tomli conditional dep, console script start/exit);

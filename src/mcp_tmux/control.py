@@ -246,9 +246,7 @@ class ControlConnection:
         else:
             self._flaps += 1
         if self._flaps > self._max_reconnects:
-            await self._emit_synthetic(
-                "disconnected", "connection unstable; giving up"
-            )
+            await self._emit_synthetic("disconnected", "connection unstable; giving up")
             return
         await self._reconnect()
 
@@ -282,9 +280,7 @@ class ControlConnection:
     async def _emit_synthetic(self, kind: str, data: str) -> None:
         async with self._cond:
             self._last_seq += 1
-            self._events.append(
-                Event(seq=self._last_seq, type=kind, raw="", data=data)
-            )
+            self._events.append(Event(seq=self._last_seq, type=kind, raw="", data=data))
             self._cond.notify_all()
 
     async def _handle_line(self, line: str) -> None:
@@ -329,9 +325,7 @@ class ControlConnection:
         text. Raises :class:`TmuxError` on ``%error`` or if the connection is
         closed."""
         if not self.alive or not self._proc or not self._proc.stdin:
-            raise TmuxError(
-                "control connection is not alive", exit_code=-1, stderr="", argv=[]
-            )
+            raise TmuxError("control connection is not alive", exit_code=-1, stderr="", argv=[])
         loop = asyncio.get_running_loop()
         fut: asyncio.Future = loop.create_future()
         self._pending.append(fut)
@@ -360,9 +354,10 @@ class ControlConnection:
         async with self._cond:
             if auto:
                 cursor = self.cursor
+            assert cursor is not None  # set from self.cursor above, else non-None by contract
 
             def ready() -> bool:
-                return (not self.alive) or self._last_seq > cursor  # type: ignore[operator]
+                return (not self.alive) or self._last_seq > cursor
 
             if not ready():
                 try:
@@ -370,18 +365,17 @@ class ControlConnection:
                 except asyncio.TimeoutError:
                     pass
 
-            fresh = [e for e in self._events if e.seq > cursor]  # type: ignore[operator]
-            lagged = bool(fresh) and fresh[0].seq > cursor + 1  # type: ignore[operator]
+            fresh = [e for e in self._events if e.seq > cursor]
+            lagged = bool(fresh) and fresh[0].seq > cursor + 1
             window = fresh[:max_events]
             new_cursor = window[-1].seq if window else cursor
             if auto:
-                self.cursor = new_cursor  # type: ignore[assignment]
+                self.cursor = new_cursor
 
         out = [
             e
             for e in window
-            if (pane is None or e.pane == pane)
-            and (kinds is None or e.type in kinds)
+            if (pane is None or e.pane == pane) and (kinds is None or e.type in kinds)
         ]
         return {
             "events": [e.as_dict(strip_ansi=strip_ansi) for e in out],
@@ -450,9 +444,7 @@ class ControlManager:
     ) -> ControlConnection:
         caps = await self.runner.capabilities(target)
         if not caps.has("control_mode"):
-            raise ValueError(
-                f"target tmux {caps.version_str} does not support control mode (-C)"
-            )
+            raise ValueError(f"target tmux {caps.version_str} does not support control mode (-C)")
         if (width is None) != (height is None):
             raise ValueError("Provide both width and height, or neither.")
         size_ok = caps.has("refresh_client_size")
