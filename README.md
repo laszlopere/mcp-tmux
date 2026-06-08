@@ -1,0 +1,92 @@
+# mcp-tmux
+
+A comprehensive, universal [MCP](https://modelcontextprotocol.io) server for
+driving **tmux** — sessions, windows, panes, sending keystrokes, and reading
+pane output — on the local machine or on remote hosts over SSH.
+
+## Design goals
+
+- **Comprehensive.** Curated tools cover the common operations ergonomically,
+  and a raw `tmux_command` passthrough runs *any* tmux subcommand — so whatever
+  your tmux supports, this server supports.
+- **Universal.** Works against tmux **1.8+** (≈2013 — covers virtually every
+  live distro). The server detects the target's tmux version and only uses
+  flags/format variables that version understands.
+- **Local + remote.** Any tool can run against the local tmux or a remote host
+  over SSH (ad-hoc `user@host` or a named profile from the config file). Old or
+  minimal boxes only need `tmux` + `ssh`; the server itself runs on a modern
+  host with Python 3.10+.
+
+## Install
+
+```bash
+uvx mcp-tmux            # run directly with uv
+# or
+pipx install mcp-tmux
+```
+
+Requires Python 3.10+ on the host running the server, plus the `tmux` binary
+(and `ssh` for remote targets).
+
+## Use with an MCP client
+
+```bash
+claude mcp add tmux -- uvx mcp-tmux
+```
+
+Or, for development from a checkout:
+
+```bash
+python -m mcp_tmux       # stdio server
+```
+
+## Tools (overview)
+
+| Group | Tools |
+|---|---|
+| Global / passthrough | `tmux_command`, `tmux_query`, `tmux_version`, `tmux_list_targets`, `tmux_kill_server` |
+| Sessions | `tmux_list_sessions`, `tmux_new_session`, `tmux_has_session`, `tmux_rename_session`, `tmux_kill_session` |
+| Windows | `tmux_list_windows`, `tmux_new_window`, `tmux_select_window`, `tmux_rename_window`, `tmux_move_window`, `tmux_swap_window`, `tmux_kill_window` |
+| Panes | `tmux_list_panes`, `tmux_split_window`, `tmux_select_pane`, `tmux_resize_pane`, `tmux_swap_pane`, `tmux_kill_pane`, `tmux_select_layout` |
+| I/O | `tmux_send_keys`, `tmux_capture_pane` |
+| Options / buffers | `tmux_set_option`, `tmux_show_options`, `tmux_list_buffers`, `tmux_set_buffer`, `tmux_paste_buffer`, `tmux_delete_buffer` |
+
+Every tool accepts an optional `target` (omit / `"local"`, a named profile, or
+`user@host`). For anything not covered by a dedicated tool, use
+`tmux_command(args=[...])`.
+
+A typical agent flow:
+
+```
+tmux_new_session(detached=True)            # -> {"id": "$0", "name": "0"}
+tmux_send_keys("0", text="echo hi", enter=True)
+tmux_capture_pane("0")                     # -> {"content": "... hi ..."}
+```
+
+## Configuration
+
+Optional TOML at `~/.config/mcp-tmux/config.toml` (override with
+`MCP_TMUX_CONFIG`):
+
+```toml
+[defaults]
+timeout = 15                 # seconds per tmux invocation
+# socket_name = "work"       # default `tmux -L`
+# socket_path = "/tmp/sock"  # default `tmux -S`
+
+[targets.prod]
+host = "user@prod-db"
+ssh_options = ["-J", "bastion", "-p", "2222"]
+# socket_name = "work"
+```
+
+With no config file the server still works against local tmux and any ad-hoc
+`user@host` target (SSH options come from your `~/.ssh/config`).
+
+## Development
+
+```bash
+python -m venv .venv && . .venv/bin/activate
+pip install -e ".[dev]"
+pytest            # unit tests always run; integration tests run if tmux exists
+```

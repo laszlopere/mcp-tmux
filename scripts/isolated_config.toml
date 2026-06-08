@@ -1,0 +1,5 @@
+# Used by scripts/try_client.py so the demo runs on its own tmux socket
+# instead of your real one.
+[defaults]
+socket_name = "mcp-tmux-demo"
+timeout = 10

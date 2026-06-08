@@ -1,0 +1,112 @@
+"""Pane tools (excluding I/O, which lives in io.py)."""
+
+from __future__ import annotations
+
+from ..formats import FIELD_SEP, PANE_FIELDS, parse_records
+
+
+def register(mcp, runner) -> None:
+    @mcp.tool()
+    async def tmux_list_panes(
+        window: str | None = None,
+        session: str | None = None,
+        target: str | None = None,
+    ) -> dict:
+        """List panes. Scope to a `window` (-t), a `session` (-s), or the whole
+        server (default, -a)."""
+        cmd = ["list-panes"]
+        if window:
+            cmd += ["-t", window]
+        elif session:
+            cmd += ["-s", "-t", session]
+        else:
+            cmd += ["-a"]
+        records = await runner.list_records(cmd, PANE_FIELDS, target=target)
+        return {"panes": records}
+
+    @mcp.tool()
+    async def tmux_split_window(
+        target_pane: str | None = None,
+        vertical: bool = False,
+        start_directory: str | None = None,
+        command: str | None = None,
+        percentage: int | None = None,
+        select: bool = True,
+        target: str | None = None,
+    ) -> dict:
+        """Split a pane. By default splits left/right; vertical=True splits
+        top/bottom. `percentage` sizes the new pane (e.g. 30). select=False
+        keeps focus on the original pane (-d).
+
+        Returns the new pane's {"id", "index"}.
+        """
+        # tmux convention: -h = horizontal split = side-by-side (left/right);
+        # -v = vertical split = stacked (top/bottom).
+        args = ["split-window", "-v" if vertical else "-h"]
+        if not select:
+            args.append("-d")
+        if target_pane:
+            args += ["-t", target_pane]
+        if start_directory:
+            args += ["-c", start_directory]
+        if percentage is not None:
+            args += ["-p", str(percentage)]
+        args += ["-P", "-F", f"#{{pane_id}}{FIELD_SEP}#{{pane_index}}"]
+        if command:
+            args.append(command)
+        out = await runner.run_checked(args, target=target)
+        rec = parse_records(out, ["id", "index"])
+        return rec[0] if rec else {}
+
+    @mcp.tool()
+    async def tmux_select_pane(target_pane: str, target: str | None = None) -> dict:
+        """Make a pane the active one."""
+        await runner.run_checked(["select-pane", "-t", target_pane], target=target)
+        return {"selected": target_pane}
+
+    @mcp.tool()
+    async def tmux_resize_pane(
+        target_pane: str,
+        left: int | None = None,
+        right: int | None = None,
+        up: int | None = None,
+        down: int | None = None,
+        target: str | None = None,
+    ) -> dict:
+        """Resize a pane by a number of cells in one or more directions."""
+        args = ["resize-pane", "-t", target_pane]
+        if left:
+            args += ["-L", str(left)]
+        if right:
+            args += ["-R", str(right)]
+        if up:
+            args += ["-U", str(up)]
+        if down:
+            args += ["-D", str(down)]
+        await runner.run_checked(args, target=target)
+        return {"resized": target_pane}
+
+    @mcp.tool()
+    async def tmux_swap_pane(src: str, dst: str, target: str | None = None) -> dict:
+        """Swap two panes."""
+        await runner.run_checked(["swap-pane", "-s", src, "-t", dst], target=target)
+        return {"swapped": True, "src": src, "dst": dst}
+
+    @mcp.tool()
+    async def tmux_kill_pane(target_pane: str, target: str | None = None) -> dict:
+        """Kill a pane (destructive)."""
+        await runner.run_checked(["kill-pane", "-t", target_pane], target=target)
+        return {"killed": True, "pane": target_pane}
+
+    @mcp.tool()
+    async def tmux_select_layout(
+        layout: str, window: str | None = None, target: str | None = None
+    ) -> dict:
+        """Apply a named layout (even-horizontal, even-vertical, main-horizontal,
+        main-vertical, tiled) or a layout string to a window."""
+        args = ["select-layout"]
+        if window:
+            args += ["-t", window]
+        args.append(layout)
+        await runner.run_checked(args, target=target)
+        return {"layout": layout}
