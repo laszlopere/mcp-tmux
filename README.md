@@ -4,6 +4,20 @@ A comprehensive, universal [MCP](https://modelcontextprotocol.io) server for
 driving **tmux** — sessions, windows, panes, sending keystrokes, and reading
 pane output — on the local machine or on remote hosts over SSH.
 
+## Shared, visible sessions — pair with the AI
+
+This is the whole point, not a caveat: the agent drives **real** tmux sessions,
+not a private sandbox. When you attach to a session the agent is using, you see
+its keystrokes and command output **live**, and you can type into the very same
+pane. Nothing the agent does is hidden from an attached human — by design.
+
+That makes tmux a natural medium for **pair programming with the AI**: open a
+shared session, watch it work, take the keyboard when you want to step in, and
+hand it back. The agent and you cooperate in one place instead of the agent
+operating out of sight. (Because writes into an attached session are visible and
+real, be deliberate with destructive commands — you're both driving the same
+terminal.)
+
 ## Design goals
 
 - **Comprehensive.** Curated tools cover the common operations ergonomically,
@@ -94,6 +108,25 @@ tmux_new_session(detached=True)            # -> {"id": "$0", "name": "0"}
 tmux_send_keys("0", text="echo hi", enter=True)
 tmux_capture_pane("0")                     # -> {"content": "... hi ..."}
 ```
+
+### Where `send_keys` text is evaluated
+
+`tmux_send_keys` types its `text` **into the pane** — it is not a local shell
+command. So any shell syntax in it (`$(...)`, backticks, `$VAR`, `~`, globs, …)
+is expanded by the **shell running in that pane**, at the moment the keys are
+executed — *not* on the machine running this MCP server. For an SSH target that
+means the **remote** pane's shell does the expansion; the server only ships the
+literal text across (the SSH layer shell-quotes the tmux argv so it survives the
+hop intact).
+
+```
+# `$(hostname)` runs in the pane, so it prints the *target's* hostname,
+# not the server's:
+tmux_send_keys("work", text="echo $(hostname)", enter=True)
+```
+
+If you need a value from the server side instead, interpolate it yourself before
+calling `send_keys`.
 
 ## Configuration
 

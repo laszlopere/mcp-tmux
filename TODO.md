@@ -201,12 +201,13 @@ Small ergonomics:
 
 ## 6. Notes / decisions to revisit
 
-[ ] 6.1. `send-keys` into an **attached** session (like pipnode's `testMCP`) is
-  visible to whoever's attached — by design. Consider a `confirm`/`dry_run`
-  flag for destructive or attached-session writes.
-[ ] 6.2. `$(...)` in `send_keys text` is evaluated by the **remote pane's shell**, not
-  locally (the SSH layer shell-quotes the tmux argv). Document this clearly to
-  avoid surprises.
+[ ] 6.1. `send-keys` into an **attached** session is visible to whoever's
+  attached — by design, and now documented as a feature (shared sessions for
+  pairing; see the README). Still worth considering a `confirm`/`dry_run` flag
+  for *destructive* writes, since the agent and human share one live terminal.
+[x] 6.2. `$(...)` in `send_keys text` is evaluated by the **remote pane's shell**, not
+  locally (the SSH layer shell-quotes the tmux argv). Documented in the README
+  ("Where `send_keys` text is evaluated") to avoid surprises.
 [ ] 6.3. Field separator is **TAB** (tmux escapes control bytes like `0x1f` to octal in
   format output, but passes TAB through). Revisit only if a real value ever
   contains a tab.
