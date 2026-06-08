@@ -180,8 +180,16 @@ Small ergonomics:
 
 ## P4 — Quality, packaging, CI
 
-- [ ] **Unit tests for the tools layer** (argv assembly per tool via a fake
-      runner). Currently covered only indirectly through integration/smoke.
+- [x] **Unit tests for the tools layer** (argv assembly per tool via a fake
+      runner). `tests/test_tools_argv.py`: a `FakeRunner` records every
+      `run`/`run_checked`/`list_records` call (driving real `Capabilities` from a
+      version string) and tools are registered against it via `register_all`, so
+      each tool's exact tmux argv is asserted with no tmux binary — flags,
+      ordering, `-P -F` format strings, version-gated spellings (key-table
+      `-T`/`-t`, `respawn`/`new-session` `-e`, `select-pane -T`, copy-mode
+      `send-keys -X`, `capture-pane -e/-J`), target threading, and the
+      validation/error branches (ValueError→ToolError). 71 new tests (152
+      passing total). wait/stream/control keep their timing-driven suites.
 - [ ] **tmux version-matrix CI** — run integration tests in containers against
       tmux 1.8 / 2.x / 3.x to prove the 1.8+ universality claim and catch
       format-var/flag drift.
