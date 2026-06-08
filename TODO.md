@@ -96,6 +96,50 @@ in `test_control.py` (deterministic parser/framing unit tests + one real
   `%exit`; surface `tmux_stream_*` over real MCP notifications for clients that
   support them; wire `ControlManager.stop_all` into a FastMCP shutdown hook.
 
+## P5 — Curated tool gaps (agent shell ergonomics)
+
+Everything here is already reachable via the `tmux_command` passthrough — these
+are curated wrappers that make the common agent-driving-a-shell flows ergonomic
+and discoverable. Higher value-per-effort than P4; ordered within by value. Each
+follows the existing `tools/*.py` patterns (thin wrapper, structured return,
+version-gated flags) and needs a test.
+
+High value:
+
+- [ ] **`tmux_clear_history`** (`clear-history -t pane`) — wipe a pane's
+      scrollback so a subsequent `tmux_capture_pane` / `tmux_run` starts from a
+      clean slate. Pairs directly with the capture/run flow; add first.
+- [ ] **`tmux_respawn_pane`** (`respawn-pane [-k] [-c dir] [cmd]`) and
+      **`tmux_respawn_window`** (`respawn-window`) — restart the command in a
+      dead/finished pane/window without recreating layout. For supervising
+      services or retrying a crashed command.
+- [ ] **`tmux_set_environment` / `tmux_show_environment`**
+      (`set-environment [-gru]` / `show-environment [-g]`) — set/inspect session
+      (or global `-g`) env vars *before* launching commands, instead of a racy
+      `export` via `send_keys`. Likely a new `tools/environment.py`.
+- [ ] **`tmux_save_buffer` / `tmux_load_buffer`** (`save-buffer -b name path` /
+      `load-buffer -b name path`) — the file bridge for paste buffers (the
+      set/list/paste/delete set in `options.py` is otherwise complete). Note the
+      file path is resolved on the **target** (remote for SSH targets).
+
+Streaming robustness:
+
+- [ ] **Client size on `tmux_stream_start`** — add `width`/`height` options that
+      issue `refresh-client -C <w>x<h>` (tmux 2.4+) after attach, so a control
+      client doesn't default to 80×24 and wrap `%output` oddly (observed on the
+      pipnode test). Consider a standalone `tmux_stream_resize` too.
+- [ ] Automatic reconnect on unexpected `%exit` — see the P3 follow-up note
+      above; turns a dropped SSH/control connection into transparent recovery.
+
+Small ergonomics:
+
+- [ ] **`tmux_new_session` `attach_or_create`** → `new-session -A` (idempotent
+      create-or-attach, 1.8+) and **`env`** → `-e KEY=VAL` (3.0+, gated).
+- [ ] **`tmux_set_pane_title`** (`select-pane -T`, 2.6+) / pane-title plumbing.
+- [ ] Navigation convenience: `tmux_last_window`, `tmux_last_pane`,
+      `tmux_next_layout` (thin wrappers over `last-window`/`last-pane`/
+      `next-layout`).
+
 ## P4 — Quality, packaging, CI
 
 - [ ] **Unit tests for the tools layer** (argv assembly per tool via a fake
