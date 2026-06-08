@@ -34,7 +34,9 @@ terminal.)
 ## Install
 
 ```bash
-uvx mcp-tmux            # run directly with uv
+uvx mcp-tmux            # run directly with uv (no install)
+# or install it as an isolated, easily-removable tool:
+uv tool install mcp-tmux
 # or
 pipx install mcp-tmux
 ```
@@ -42,13 +44,62 @@ pipx install mcp-tmux
 Requires Python 3.10+ on the host running the server, plus the `tmux` binary
 (and `ssh` for remote targets).
 
-## Use with an MCP client
+> **Installing ≠ registering.** Installing the package only puts the `mcp-tmux`
+> executable on your PATH — it does **not** tell any MCP client about it. Python
+> wheels can't run post-install code, so registration is always a separate step
+> (see below). If a client "can't find" the server after install, it just hasn't
+> been registered yet.
+
+## Register with Claude Code
+
+The package can register itself — no hand-editing of config files:
 
 ```bash
-claude mcp add tmux -- uvx mcp-tmux
+mcp-tmux register        # add to Claude Code at *user* scope
+mcp-tmux unregister      # remove it again
 ```
 
-Or, for development from a checkout:
+**User scope matters.** `mcp-tmux register` defaults to `--scope user`, so the
+server is visible from **every** directory/session. The plain
+`claude mcp add tmux -- mcp-tmux` defaults to `local` (project) scope, which is
+the usual reason a server "doesn't show up" in another session — it was only
+added for the directory you ran it in. To pick a scope explicitly:
+
+```bash
+mcp-tmux register --scope user      # everywhere (default)
+mcp-tmux register --scope project   # shared via this repo's .mcp.json
+mcp-tmux register --scope local     # just this directory
+```
+
+After registering, confirm with `claude mcp list` (you should see
+`tmux: mcp-tmux  - ✓ Connected`). A client session already running must be
+restarted to pick up a newly registered server.
+
+Equivalent manual form, if you prefer the raw CLI:
+
+```bash
+claude mcp add -s user tmux -- mcp-tmux     # for an installed tool
+claude mcp add -s user tmux -- uvx mcp-tmux # without installing
+```
+
+### One-shot install + register (and clean removal)
+
+From a checkout, the helper scripts do install **and** registration together —
+the closest thing to "it happens at install time":
+
+```bash
+scripts/install.sh        # build wheel, `uv tool install`, then `mcp-tmux register`
+scripts/uninstall.sh      # `mcp-tmux unregister`, then `uv tool uninstall`
+```
+
+To remove everything by hand:
+
+```bash
+mcp-tmux unregister       # drop it from Claude Code
+uv tool uninstall mcp-tmux   # remove the isolated tool (or: pipx uninstall mcp-tmux)
+```
+
+## Run from a checkout (development)
 
 ```bash
 python -m mcp_tmux       # stdio server
