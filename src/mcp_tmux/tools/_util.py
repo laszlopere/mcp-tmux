@@ -41,13 +41,22 @@ READ_ONLY = {
 
 # Tools that destroy state (kill / delete). Clients should confirm these.
 DESTRUCTIVE = {
-    "tmux_kill_server",
-    "tmux_kill_session",
-    "tmux_kill_window",
-    "tmux_kill_pane",
+    "tmux_kill",
     "tmux_delete_buffer",
     "tmux_clear_history",
 }
+
+
+def require_kind(kind: str, allowed) -> str:
+    """Validate a `kind` discriminator against an allow-list.
+
+    Raises ``ValueError`` (mapped to ``ToolError`` by :func:`_wrap_errors`) on a
+    bad value. Returns the validated kind so callers can use it inline.
+    """
+    if kind not in allowed:
+        allowed_str = ", ".join(sorted(allowed))
+        raise ValueError(f"kind must be one of: {allowed_str} (got {kind!r})")
+    return kind
 
 
 def _wrap_errors(fn):

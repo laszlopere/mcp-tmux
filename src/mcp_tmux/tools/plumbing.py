@@ -33,8 +33,8 @@ def register(mcp, runner) -> None:
         """Unlink a window (remove one of its links).
 
         Fails if the window is only linked once, unless it is not the last —
-        tmux refuses to leave a window with no links. Use `tmux_kill_window` to
-        destroy it outright.
+        tmux refuses to leave a window with no links. Use
+        `tmux_kill(kind="window")` to destroy it outright.
         """
         await runner.run_checked(["unlink-window", "-t", window], target=target)
         return {"unlinked": True, "window": window}

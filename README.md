@@ -116,10 +116,11 @@ python -m mcp_tmux       # stdio server
 
 | Group | Tools |
 |---|---|
-| Global / passthrough | `tmux_command`, `tmux_query`, `tmux_version`, `tmux_list_targets`, `tmux_kill_server` |
-| Sessions | `tmux_list_sessions`, `tmux_new_session`, `tmux_has_session`, `tmux_rename_session`, `tmux_kill_session` |
-| Windows | `tmux_list_windows`, `tmux_new_window`, `tmux_select_window`, `tmux_rename_window`, `tmux_move_window`, `tmux_swap_window`, `tmux_kill_window` |
-| Panes | `tmux_list_panes`, `tmux_split_window`, `tmux_select_pane`, `tmux_resize_pane`, `tmux_swap_pane`, `tmux_kill_pane`, `tmux_select_layout` |
+| Global / passthrough | `tmux_command`, `tmux_query`, `tmux_version`, `tmux_list_targets` |
+| Consolidated (`kind=…`) | `tmux_kill`, `tmux_rename`, `tmux_select`, `tmux_last`, `tmux_swap`, `tmux_respawn` |
+| Sessions | `tmux_list_sessions`, `tmux_new_session`, `tmux_has_session` |
+| Windows | `tmux_list_windows`, `tmux_new_window`, `tmux_move_window`, `tmux_next_layout` |
+| Panes | `tmux_list_panes`, `tmux_split_window`, `tmux_resize_pane`, `tmux_select_layout`, `tmux_set_pane_title`, `tmux_clear_history` |
 | I/O | `tmux_send_keys`, `tmux_capture_pane` |
 | Wait / sync | `tmux_wait_for_text`, `tmux_wait_for_idle`, `tmux_run` |
 | Options / buffers | `tmux_set_option`, `tmux_show_options`, `tmux_list_buffers`, `tmux_set_buffer`, `tmux_paste_buffer`, `tmux_delete_buffer` |
@@ -133,6 +134,13 @@ python -m mcp_tmux       # stdio server
 Every tool accepts an optional `target` (omit / `"local"`, a named profile, or
 `user@host`). For anything not covered by a dedicated tool, use
 `tmux_command(args=[...])`.
+
+The **consolidated** tools take a `kind` discriminator instead of having one
+tool per entity — e.g. `tmux_kill(kind="window", id="dev:2")`,
+`tmux_kill(kind="server")`, `tmux_swap(kind="pane", src="%1", dst="%2")`,
+`tmux_rename(kind="session", id="old", new_name="new")`. Valid kinds: `kill` →
+session/window/pane/server; `rename` → session/window; `select`/`last`/`swap` →
+window/pane; `respawn` → pane/window.
 
 ### Live streaming (opt-in)
 

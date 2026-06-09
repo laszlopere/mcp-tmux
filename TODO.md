@@ -267,20 +267,24 @@ differs, scope args differ; normalizes to `{items, kind}` — all READ_ONLY:
 | `tmux_list_buffers` | `()` | `{buffers}` |
 | `tmux_list_keys` | `(table)` | `{keys, lines}` ← *not* a record list; **exclude** |
 
-### 6.1 — Strong merges (identical arg + return; do these first)
+### 6.1 — Strong merges (identical arg + return; do these first) ✅ DONE
 
-[ ] **`tmux_kill(kind, id=None)`** ← kill_session/window/pane/server (4→1, −3).
+All six live in `tools/merged.py`, registered after sessions/windows/panes.
+Each validates `kind` via `require_kind()` (in `_util.py`) and returns a `kind`
+key. Clean break — old per-kind tools removed (pre-PyPI, see 6.4 decision).
+
+[x] **`tmux_kill(kind, id=None)`** ← kill_session/window/pane/server (4→1, −3).
       `kind ∈ {session, window, pane, server}`; `id` required for all but
       `server` (validate). Maps to `kill-<kind> [-t id]`. Returns
       `{killed: True, kind, id}`. Stays in `DESTRUCTIVE`.
-[ ] **`tmux_respawn(kind, id, command=None, kill=False, start_directory=None,
+[x] **`tmux_respawn(kind, id, command=None, kill=False, start_directory=None,
       env=None)`** ← respawn_pane/window (2→1, −1). Already byte-identical; the
       `env`/`respawn_env` capability gate is shared. `kind ∈ {pane, window}`.
-[ ] **`tmux_swap(kind, src, dst)`** ← swap_window/pane (2→1, −1). Byte-identical
+[x] **`tmux_swap(kind, src, dst)`** ← swap_window/pane (2→1, −1). Byte-identical
       return today. `kind ∈ {window, pane}` → `swap-<kind> -s src -t dst`.
-[ ] **`tmux_rename(kind, id, new_name)`** ← rename_session/window (2→1, −1).
-[ ] **`tmux_select(kind, id)`** ← select_window/pane (2→1, −1).
-[ ] **`tmux_last(kind, scope=None)`** ← last_window/last_pane (2→1, −1). `scope`
+[x] **`tmux_rename(kind, id, new_name)`** ← rename_session/window (2→1, −1).
+[x] **`tmux_select(kind, id)`** ← select_window/pane (2→1, −1).
+[x] **`tmux_last(kind, scope=None)`** ← last_window/last_pane (2→1, −1). `scope`
       is the optional `-t` (a session for windows, a window for panes).
 
 Subtotal: 14 tools → 6. **Net −8.**
@@ -312,27 +316,23 @@ set+show pairs, `tmux_bind/unbind/list_keys`, the `copy_*` trio, the
 
 ### 6.4 — Cross-cutting implementation notes
 
-[ ] **Annotations stay clean.** Each equivalence class is *uniformly* one
-      category — Class K is all-destructive, Class LIST is all-read-only, the
-      rest are neither — so `tools/_util.py` just lists the new merged name in
-      `DESTRUCTIVE` (`tmux_kill`) / `READ_ONLY` (`tmux_list`) and drops the old
-      per-kind names. No per-`kind` annotation branching needed.
-[ ] **Validation pattern.** A small `_require_kind(kind, allowed)` helper in
-      `_util.py` (raises `ValueError(f"kind must be one of {allowed}")`); reuse
-      across merged tools. `tmux_kill` additionally validates `id` presence per
-      kind.
-[ ] **Tests.** Extend `tests/test_tools_argv.py` — assert each `kind` produces
-      the correct argv (`kill-session -t s`, `swap-pane -s a -t b`, …) and that
-      a bad `kind` / missing `id` raises `ToolError`. Net: replaces ~14
-      per-tool argv tests with ~6 parametrized ones.
-[ ] **Back-compat decision (needs a call).** Either (a) **clean break** — drop
-      old names, bump to 0.2.0, update README tool table; or (b) **keep thin
-      aliases** for one release (old `tmux_kill_session` delegates to
-      `tmux_kill(kind="session")`) to avoid breaking existing client configs.
-      Pre-PyPI-publish (see 4.6) is the cheapest moment for a clean break.
-[ ] **Docs.** Update the README tool table and `## tmux` server instructions to
-      describe the merged tools; the count drops from 71 to ~63 (strong merges)
-      or ~59 (with the list merge).
+[x] **Annotations stay clean.** `tmux_kill` added to `DESTRUCTIVE`; old
+      per-kind kill names dropped. (Class LIST / `tmux_list` is the 6.2 merge,
+      not done here.) No per-`kind` annotation branching needed.
+[x] **Validation pattern.** `require_kind(kind, allowed)` helper in `_util.py`
+      (raises `ValueError`); reused across all six merged tools. `tmux_kill`
+      additionally validates `id` presence for non-server kinds.
+[x] **Tests.** `tests/test_tools_argv.py` now has a `merged.py` section with
+      parametrized argv assertions per `kind` plus bad-`kind` / missing-`id`
+      ToolError cases; the integration suites (test_p5, test_functional) call
+      the merged names.
+[x] **Back-compat decision (made).** (a) **clean break** — old per-kind names
+      dropped, no aliases. Done pre-PyPI-publish (4.6), version already
+      0.2.0.dev0, so no existing client configs to break.
+[x] **Docs.** README tool table + the `## tmux` server instructions
+      (`server.py` INSTRUCTIONS) updated to describe the `kind`-discriminated
+      tools. Count drops from 71 to 63 (strong merges only; the 6.2 list merge
+      would take it to ~59).
 
 ---
 

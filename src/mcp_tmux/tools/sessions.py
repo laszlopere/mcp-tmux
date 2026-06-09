@@ -90,15 +90,3 @@ def register(mcp, runner) -> None:
         if notes:
             result["notes"] = notes
         return result
-
-    @mcp.tool()
-    async def tmux_rename_session(session: str, new_name: str, target: str | None = None) -> dict:
-        """Rename a session."""
-        await runner.run_checked(["rename-session", "-t", session, new_name], target=target)
-        return {"renamed": True, "name": new_name}
-
-    @mcp.tool()
-    async def tmux_kill_session(session: str, target: str | None = None) -> dict:
-        """Kill a session (destructive). Ends all its windows and panes."""
-        await runner.run_checked(["kill-session", "-t", session], target=target)
-        return {"killed": True, "session": session}

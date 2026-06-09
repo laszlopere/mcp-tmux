@@ -9,6 +9,7 @@ from . import (
     hooks,
     io,
     keys,
+    merged,
     options,
     panes,
     passthrough,
@@ -26,6 +27,7 @@ def register_all(mcp, runner) -> None:
     sessions.register(mcp, runner)
     windows.register(mcp, runner)
     panes.register(mcp, runner)
+    merged.register(mcp, runner)
     io.register(mcp, runner)
     options.register(mcp, runner)
     environment.register(mcp, runner)

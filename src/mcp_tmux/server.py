@@ -23,6 +23,11 @@ Every tool takes an optional `target`: omit it (or pass "local") for the local
 machine, a named profile from the config file, or an ad-hoc ssh destination like
 "user@host". `tmux_command(args=[...])` runs ANY tmux subcommand for anything
 not covered by a dedicated tool.
+
+Several tools take a `kind` discriminator rather than one tool per entity:
+tmux_kill (session/window/pane/server), tmux_rename (session/window),
+tmux_select / tmux_last / tmux_swap (window/pane), tmux_respawn (pane/window).
+E.g. tmux_kill(kind="window", id="dev:2") or tmux_kill(kind="server").
 """
 
 

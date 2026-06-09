@@ -112,7 +112,7 @@ async def _run_full_workflow(mcp, *, target, session, owns_session) -> None:
 
         # --- control-mode streaming (P3) ------------------------------------
         # Our functest window must be active for its panes to stream.
-        await t("tmux_select_window", {"window": wid})
+        await t("tmux_select", {"kind": "window", "id": wid})
         stream = await t("tmux_stream_start", {"session": session})
         sid = stream["stream_id"]
         try:
@@ -151,12 +151,12 @@ async def _run_full_workflow(mcp, *, target, session, owns_session) -> None:
         # Remove our window; restore a borrowed session's active window.
         if wid is not None:
             try:
-                await t("tmux_kill_window", {"window": wid})
+                await t("tmux_kill", {"kind": "window", "id": wid})
             except Exception:
                 pass
         if orig_active:
             try:
-                await t("tmux_select_window", {"window": orig_active})
+                await t("tmux_select", {"kind": "window", "id": orig_active})
             except Exception:
                 pass
 

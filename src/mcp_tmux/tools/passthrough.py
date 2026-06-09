@@ -71,9 +71,3 @@ def register(mcp, runner) -> None:
     async def tmux_list_targets() -> dict:
         """List configured targets: 'local' plus any named profiles from config."""
         return {"targets": list_target_names(runner.config)}
-
-    @mcp.tool()
-    async def tmux_kill_server(target: str | None = None) -> dict:
-        """Kill the tmux server on the target (destructive: ends ALL sessions)."""
-        await runner.run_checked(["kill-server"], target=target)
-        return {"killed": True}

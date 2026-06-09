@@ -77,11 +77,11 @@ async def test_respawn_pane_restarts_command(runner):
     # Force-restart the (still-running shell) pane with a new command.
     res = _tool_json(
         await mcp.call_tool(
-            "tmux_respawn_pane",
-            {"target_pane": "rsp", "command": "sleep 300", "kill": True},
+            "tmux_respawn",
+            {"kind": "pane", "id": "rsp", "command": "sleep 300", "kill": True},
         )
     )
-    assert res == {"respawned": True, "pane": "rsp"}
+    assert res == {"respawned": True, "kind": "pane", "id": "rsp"}
 
     for _ in range(20):
         if await _current_command(runner, "rsp") == "sleep":
@@ -99,9 +99,10 @@ async def test_respawn_pane_with_env(runner):
 
     res = _tool_json(
         await mcp.call_tool(
-            "tmux_respawn_pane",
+            "tmux_respawn",
             {
-                "target_pane": "rspe",
+                "kind": "pane",
+                "id": "rspe",
                 "command": "sh -c 'echo GOT-$MCP_FOO; exec sleep 300'",
                 "kill": True,
                 "env": {"MCP_FOO": "barbaz"},
@@ -125,11 +126,11 @@ async def test_respawn_window_restarts_command(runner):
 
     res = _tool_json(
         await mcp.call_tool(
-            "tmux_respawn_window",
-            {"window": "rsw", "command": "sleep 300", "kill": True},
+            "tmux_respawn",
+            {"kind": "window", "id": "rsw", "command": "sleep 300", "kill": True},
         )
     )
-    assert res == {"respawned": True, "window": "rsw"}
+    assert res == {"respawned": True, "kind": "window", "id": "rsw"}
 
     for _ in range(20):
         if await _current_command(runner, "rsw") == "sleep":
@@ -278,8 +279,8 @@ async def test_last_window_switches_back(runner):
         await runner.run_checked(["display-message", "-p", "-t", "nav", "#{window_index}"])
     ).strip() == "1"
 
-    res = _tool_json(await mcp.call_tool("tmux_last_window", {"session": "nav"}))
-    assert res == {"selected": "last"}
+    res = _tool_json(await mcp.call_tool("tmux_last", {"kind": "window", "scope": "nav"}))
+    assert res == {"selected": "last", "kind": "window"}
     assert (
         await runner.run_checked(["display-message", "-p", "-t", "nav", "#{window_index}"])
     ).strip() == "0"
@@ -294,8 +295,8 @@ async def test_last_pane_switches_back(runner):
         await runner.run_checked(["display-message", "-p", "-t", "navp", "#{pane_index}"])
     ).strip() == "1"
 
-    res = _tool_json(await mcp.call_tool("tmux_last_pane", {"window": "navp"}))
-    assert res == {"selected": "last"}
+    res = _tool_json(await mcp.call_tool("tmux_last", {"kind": "pane", "scope": "navp"}))
+    assert res == {"selected": "last", "kind": "pane"}
     assert (
         await runner.run_checked(["display-message", "-p", "-t", "navp", "#{pane_index}"])
     ).strip() == "0"

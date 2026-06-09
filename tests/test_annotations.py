@@ -20,7 +20,7 @@ def test_read_only_tools_annotated():
 def test_destructive_tools_annotated():
     mcp = build_server(config={"defaults": {}, "targets": {}})
     tools = _tools_by_name(mcp)
-    ann = tools["tmux_kill_session"].annotations
+    ann = tools["tmux_kill"].annotations
     assert ann.destructiveHint is True
     assert ann.readOnlyHint is False
 

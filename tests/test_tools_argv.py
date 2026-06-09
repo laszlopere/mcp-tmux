@@ -113,7 +113,11 @@ async def test_query_without_pane_omits_target_flag():
 
 async def test_kill_server_argv():
     fr = FakeRunner()
-    assert await _tools(fr)["tmux_kill_server"]() == {"killed": True}
+    assert await _tools(fr)["tmux_kill"](kind="server") == {
+        "killed": True,
+        "kind": "server",
+        "id": None,
+    }
     assert fr.checked == [["kill-server"]]
 
 
@@ -217,8 +221,8 @@ async def test_new_session_attach_or_create_creates_when_absent():
 async def test_rename_and_kill_session_argv():
     fr = FakeRunner()
     tools = _tools(fr)
-    await tools["tmux_rename_session"](session="old", new_name="new")
-    await tools["tmux_kill_session"](session="dead")
+    await tools["tmux_rename"](kind="session", id="old", new_name="new")
+    await tools["tmux_kill"](kind="session", id="dead")
     assert fr.checked == [
         ["rename-session", "-t", "old", "new"],
         ["kill-session", "-t", "dead"],
@@ -268,62 +272,16 @@ async def test_new_window_argv():
     assert res == {"id": "@3", "index": "2", "name": "logs"}
 
 
-async def test_select_last_next_layout_argv():
+async def test_next_layout_argv():
     fr = FakeRunner()
-    tools = _tools(fr)
-    await tools["tmux_select_window"](window="dev:1")
-    await tools["tmux_last_window"](session="dev")
-    await tools["tmux_next_layout"](window="dev:1")
-    assert fr.checked == [
-        ["select-window", "-t", "dev:1"],
-        ["last-window", "-t", "dev"],
-        ["next-layout", "-t", "dev:1"],
-    ]
+    await _tools(fr)["tmux_next_layout"](window="dev:1")
+    assert fr.checked == [["next-layout", "-t", "dev:1"]]
 
 
-async def test_move_swap_kill_window_argv():
+async def test_move_window_argv():
     fr = FakeRunner()
-    tools = _tools(fr)
-    await tools["tmux_move_window"](src="a:1", dst="b:2")
-    await tools["tmux_swap_window"](src="a:1", dst="b:2")
-    await tools["tmux_kill_window"](window="a:1")
-    assert fr.checked == [
-        ["move-window", "-s", "a:1", "-t", "b:2"],
-        ["swap-window", "-s", "a:1", "-t", "b:2"],
-        ["kill-window", "-t", "a:1"],
-    ]
-
-
-async def test_respawn_window_argv_with_env():
-    fr = FakeRunner(version="3.0")
-    res = await _tools(fr)["tmux_respawn_window"](
-        window="dev:0",
-        command="server",
-        kill=True,
-        start_directory="/srv",
-        env={"K": "V"},
-    )
-    assert fr.checked == [
-        [
-            "respawn-window",
-            "-k",
-            "-c",
-            "/srv",
-            "-e",
-            "K=V",
-            "-t",
-            "dev:0",
-            "server",
-        ]
-    ]
-    assert res == {"respawned": True, "window": "dev:0"}
-
-
-async def test_respawn_window_env_gated():
-    fr = FakeRunner(version="2.9")
-    res = await _tools(fr)["tmux_respawn_window"](window="dev:0", env={"K": "V"})
-    assert "-e" not in fr.checked[0]
-    assert res["notes"] == ["env ignored: respawn -e requires tmux 3.0+"]
+    await _tools(fr)["tmux_move_window"](src="a:1", dst="b:2")
+    assert fr.checked == [["move-window", "-s", "a:1", "-t", "b:2"]]
 
 
 # ---------------------------------------------------------------------------
@@ -406,29 +364,10 @@ async def test_clear_history_argv():
     assert res == {"cleared": True, "pane": "%1"}
 
 
-async def test_respawn_pane_argv():
-    fr = FakeRunner(version="3.0")
-    await _tools(fr)["tmux_respawn_pane"](
-        target_pane="%1", command="svc", kill=True, env={"A": "1"}
-    )
-    assert fr.checked == [["respawn-pane", "-k", "-e", "A=1", "-t", "%1", "svc"]]
-
-
-async def test_swap_kill_select_pane_argv():
+async def test_select_layout_argv():
     fr = FakeRunner()
-    tools = _tools(fr)
-    await tools["tmux_select_pane"](target_pane="%2")
-    await tools["tmux_swap_pane"](src="%1", dst="%2")
-    await tools["tmux_kill_pane"](target_pane="%3")
-    await tools["tmux_last_pane"](window="dev:1")
-    await tools["tmux_select_layout"](layout="tiled", window="dev:1")
-    assert fr.checked == [
-        ["select-pane", "-t", "%2"],
-        ["swap-pane", "-s", "%1", "-t", "%2"],
-        ["kill-pane", "-t", "%3"],
-        ["last-pane", "-t", "dev:1"],
-        ["select-layout", "-t", "dev:1", "tiled"],
-    ]
+    await _tools(fr)["tmux_select_layout"](layout="tiled", window="dev:1")
+    assert fr.checked == [["select-layout", "-t", "dev:1", "tiled"]]
 
 
 # ---------------------------------------------------------------------------
@@ -899,5 +838,113 @@ async def test_if_shell_argv():
 
 async def test_target_threaded_through():
     fr = FakeRunner()
-    await _tools(fr)["tmux_kill_pane"](target_pane="%1", target="pipnode")
+    await _tools(fr)["tmux_kill"](kind="pane", id="%1", target="pipnode")
     assert fr.targets == ["pipnode"]
+
+
+# ---------------------------------------------------------------------------
+# merged.py  (consolidated kind-discriminated tools — P6 §6.1)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "kind,expected",
+    [
+        ("session", ["kill-session", "-t", "x"]),
+        ("window", ["kill-window", "-t", "x"]),
+        ("pane", ["kill-pane", "-t", "x"]),
+    ],
+)
+async def test_kill_argv_per_kind(kind, expected):
+    fr = FakeRunner()
+    res = await _tools(fr)["tmux_kill"](kind=kind, id="x")
+    assert fr.checked == [expected]
+    assert res == {"killed": True, "kind": kind, "id": "x"}
+
+
+async def test_kill_server_takes_no_id():
+    fr = FakeRunner()
+    res = await _tools(fr)["tmux_kill"](kind="server")
+    assert fr.checked == [["kill-server"]]
+    assert res == {"killed": True, "kind": "server", "id": None}
+
+
+async def test_kill_requires_id_for_non_server():
+    fr = FakeRunner()
+    with pytest.raises(ToolError):
+        await _tools(fr)["tmux_kill"](kind="pane")
+
+
+async def test_kill_bad_kind_raises():
+    fr = FakeRunner()
+    with pytest.raises(ToolError):
+        await _tools(fr)["tmux_kill"](kind="bogus", id="x")
+    assert fr.checked == []
+
+
+@pytest.mark.parametrize("kind", ["session", "window"])
+async def test_rename_argv_per_kind(kind):
+    fr = FakeRunner()
+    res = await _tools(fr)["tmux_rename"](kind=kind, id="old", new_name="new")
+    assert fr.checked == [[f"rename-{kind}", "-t", "old", "new"]]
+    assert res == {"renamed": True, "kind": kind, "name": "new"}
+
+
+@pytest.mark.parametrize("kind", ["window", "pane"])
+async def test_select_argv_per_kind(kind):
+    fr = FakeRunner()
+    res = await _tools(fr)["tmux_select"](kind=kind, id="t")
+    assert fr.checked == [[f"select-{kind}", "-t", "t"]]
+    assert res == {"selected": "t", "kind": kind}
+
+
+async def test_last_argv_with_and_without_scope():
+    fr = FakeRunner()
+    res = await _tools(fr)["tmux_last"](kind="window", scope="dev")
+    assert fr.checked == [["last-window", "-t", "dev"]]
+    assert res == {"selected": "last", "kind": "window"}
+
+    fr = FakeRunner()
+    await _tools(fr)["tmux_last"](kind="pane")
+    assert fr.checked == [["last-pane"]]
+
+
+@pytest.mark.parametrize("kind", ["window", "pane"])
+async def test_swap_argv_per_kind(kind):
+    fr = FakeRunner()
+    res = await _tools(fr)["tmux_swap"](kind=kind, src="a", dst="b")
+    assert fr.checked == [[f"swap-{kind}", "-s", "a", "-t", "b"]]
+    assert res == {"swapped": True, "kind": kind, "src": "a", "dst": "b"}
+
+
+@pytest.mark.parametrize("kind", ["pane", "window"])
+async def test_respawn_argv_per_kind_with_env(kind):
+    fr = FakeRunner(version="3.0")
+    res = await _tools(fr)["tmux_respawn"](
+        kind=kind, id="t", command="svc", kill=True, start_directory="/srv", env={"A": "1"}
+    )
+    assert fr.checked == [[f"respawn-{kind}", "-k", "-c", "/srv", "-e", "A=1", "-t", "t", "svc"]]
+    assert res == {"respawned": True, "kind": kind, "id": "t"}
+
+
+async def test_respawn_env_gated_on_old_tmux():
+    fr = FakeRunner(version="2.9")
+    res = await _tools(fr)["tmux_respawn"](kind="pane", id="%1", env={"K": "V"})
+    assert "-e" not in fr.checked[0]
+    assert res["notes"] == ["env ignored: respawn -e requires tmux 3.0+"]
+
+
+@pytest.mark.parametrize(
+    "tool,kwargs",
+    [
+        ("tmux_rename", {"id": "x", "new_name": "y"}),
+        ("tmux_select", {"id": "x"}),
+        ("tmux_last", {}),
+        ("tmux_swap", {"src": "a", "dst": "b"}),
+        ("tmux_respawn", {"id": "x"}),
+    ],
+)
+async def test_merged_tools_reject_bad_kind(tool, kwargs):
+    fr = FakeRunner()
+    with pytest.raises(ToolError):
+        await _tools(fr)[tool](kind="bogus", **kwargs)
