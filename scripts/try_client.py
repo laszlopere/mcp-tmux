@@ -48,7 +48,7 @@ async def main() -> None:
             )
             await asyncio.sleep(0.4)
             await call("tmux_capture_pane", {"target_pane": "demo"})
-            await call("tmux_list_sessions", {})
+            await call("tmux_list", {"kind": "session"})
             await call("tmux_command", {"args": ["kill-server"]})
 
 

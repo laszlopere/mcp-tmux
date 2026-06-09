@@ -12,10 +12,54 @@ See TODO P6 for the equivalence-class inventory and the merge rationale.
 
 from __future__ import annotations
 
+from ..formats import CLIENT_FIELDS, FIELD_SEP, SESSION_FIELDS, WINDOW_FIELDS
 from ._util import require_kind
 
 
 def register(mcp, runner) -> None:
+    @mcp.tool()
+    async def tmux_list(kind: str, scope: str | None = None, target: str | None = None) -> dict:
+        """List sessions, windows, clients, or paste buffers.
+
+        `kind` selects what to enumerate:
+          - "session" — all sessions (`scope` ignored)
+          - "window"  — windows in `scope` (a session); all windows server-wide
+            (-a) when `scope` is omitted
+          - "client"  — clients attached to `scope` (a session); all clients
+            when omitted
+          - "buffer"  — paste buffers (`scope` ignored)
+
+        Panes are NOT here — use `tmux_list_panes`, which has two independent
+        scope axes (a window vs a session). Key bindings use `tmux_list_keys`
+        (its return is text, not a record list).
+
+        Returns {"items": [...], "kind": kind}: the per-entity records under a
+        uniform "items" key regardless of `kind`.
+        """
+        require_kind(kind, {"session", "window", "client", "buffer"})
+        if kind == "session":
+            items = await runner.list_records(["list-sessions"], SESSION_FIELDS, target=target)
+        elif kind == "window":
+            cmd = ["list-windows", "-t", scope] if scope else ["list-windows", "-a"]
+            items = await runner.list_records(cmd, WINDOW_FIELDS, target=target)
+        elif kind == "client":
+            cmd = ["list-clients"]
+            if scope:
+                cmd += ["-t", scope]
+            items = await runner.list_records(cmd, CLIENT_FIELDS, target=target)
+        else:  # buffer
+            out = await runner.run_checked(
+                ["list-buffers", "-F", f"#{{buffer_name}}{FIELD_SEP}#{{buffer_size}}"],
+                target=target,
+            )
+            items = []
+            for line in out.splitlines():
+                if not line:
+                    continue
+                name, _, size = line.partition(FIELD_SEP)
+                items.append({"name": name, "size": size})
+        return {"items": items, "kind": kind}
+
     @mcp.tool()
     async def tmux_kill(kind: str, id: str | None = None, target: str | None = None) -> dict:
         """Kill a session, window, pane, or the whole server (destructive).

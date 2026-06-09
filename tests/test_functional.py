@@ -75,8 +75,8 @@ async def _run_full_workflow(mcp, *, target, session, owns_session) -> None:
         assert win["name"] == "functest" and win["id"]
         wid = win["id"]
 
-        windows = await t("tmux_list_windows", {"session": session})
-        assert any(w["id"] == wid for w in windows["windows"])
+        windows = await t("tmux_list", {"kind": "window", "scope": session})
+        assert any(w["id"] == wid for w in windows["items"])
 
         split = await t("tmux_split_window", {"target_pane": wid})
         assert split["id"]

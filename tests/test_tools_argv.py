@@ -135,14 +135,6 @@ async def test_list_targets_reads_config_not_tmux():
 # ---------------------------------------------------------------------------
 
 
-async def test_list_sessions_argv():
-    fr = FakeRunner(records=[{"id": "$0"}])
-    res = await _tools(fr)["tmux_list_sessions"](target="t")
-    assert fr.listed == [["list-sessions"]]
-    assert fr.targets == ["t"]
-    assert res == {"sessions": [{"id": "$0"}]}
-
-
 async def test_has_session_argv_and_bool():
     fr = FakeRunner(run_ok=True)
     res = await _tools(fr)["tmux_has_session"](session="dev")
@@ -232,16 +224,6 @@ async def test_rename_and_kill_session_argv():
 # ---------------------------------------------------------------------------
 # windows.py
 # ---------------------------------------------------------------------------
-
-
-async def test_list_windows_scopes():
-    fr = FakeRunner()
-    await _tools(fr)["tmux_list_windows"](session="dev")
-    assert fr.listed == [["list-windows", "-t", "dev"]]
-
-    fr = FakeRunner()
-    await _tools(fr)["tmux_list_windows"]()
-    assert fr.listed == [["list-windows", "-a"]]
 
 
 async def test_new_window_argv():
@@ -491,13 +473,6 @@ async def test_save_load_buffer_argv():
     assert r2 == {"loaded": "/tmp/y", "name": "b2"}
 
 
-async def test_list_buffers_parse():
-    fr = FakeRunner(output=f"b1{SEP}11\nb2{SEP}22\n")
-    res = await _tools(fr)["tmux_list_buffers"]()
-    assert fr.checked == [["list-buffers", "-F", f"#{{buffer_name}}{SEP}#{{buffer_size}}"]]
-    assert res == {"buffers": [{"name": "b1", "size": "11"}, {"name": "b2", "size": "22"}]}
-
-
 # ---------------------------------------------------------------------------
 # environment.py
 # ---------------------------------------------------------------------------
@@ -541,12 +516,6 @@ async def test_show_environment_argv_and_parse():
 # ---------------------------------------------------------------------------
 # clients.py
 # ---------------------------------------------------------------------------
-
-
-async def test_list_clients_argv():
-    fr = FakeRunner()
-    await _tools(fr)["tmux_list_clients"](session="dev")
-    assert fr.listed == [["list-clients", "-t", "dev"]]
 
 
 async def test_server_info_argv_and_fields():
@@ -932,6 +901,51 @@ async def test_respawn_env_gated_on_old_tmux():
     res = await _tools(fr)["tmux_respawn"](kind="pane", id="%1", env={"K": "V"})
     assert "-e" not in fr.checked[0]
     assert res["notes"] == ["env ignored: respawn -e requires tmux 3.0+"]
+
+
+async def test_list_session_argv():
+    fr = FakeRunner(records=[{"id": "$0"}])
+    res = await _tools(fr)["tmux_list"](kind="session", target="t")
+    assert fr.listed == [["list-sessions"]]
+    assert fr.targets == ["t"]
+    assert res == {"items": [{"id": "$0"}], "kind": "session"}
+
+
+async def test_list_window_scopes():
+    fr = FakeRunner()
+    await _tools(fr)["tmux_list"](kind="window", scope="dev")
+    assert fr.listed == [["list-windows", "-t", "dev"]]
+
+    fr = FakeRunner()
+    await _tools(fr)["tmux_list"](kind="window")
+    assert fr.listed == [["list-windows", "-a"]]
+
+
+async def test_list_client_scopes():
+    fr = FakeRunner()
+    await _tools(fr)["tmux_list"](kind="client", scope="dev")
+    assert fr.listed == [["list-clients", "-t", "dev"]]
+
+    fr = FakeRunner()
+    await _tools(fr)["tmux_list"](kind="client")
+    assert fr.listed == [["list-clients"]]
+
+
+async def test_list_buffer_parse():
+    fr = FakeRunner(output=f"b1{SEP}11\nb2{SEP}22\n")
+    res = await _tools(fr)["tmux_list"](kind="buffer")
+    assert fr.checked == [["list-buffers", "-F", f"#{{buffer_name}}{SEP}#{{buffer_size}}"]]
+    assert res == {
+        "items": [{"name": "b1", "size": "11"}, {"name": "b2", "size": "22"}],
+        "kind": "buffer",
+    }
+
+
+async def test_list_bad_kind_raises():
+    fr = FakeRunner()
+    with pytest.raises(ToolError):
+        await _tools(fr)["tmux_list"](kind="pane")
+    assert fr.listed == []
 
 
 @pytest.mark.parametrize(

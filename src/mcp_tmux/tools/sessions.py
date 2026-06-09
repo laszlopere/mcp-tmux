@@ -4,16 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..formats import FIELD_SEP, SESSION_FIELDS, parse_records
+from ..formats import FIELD_SEP, parse_records
 
 
 def register(mcp, runner) -> None:
-    @mcp.tool()
-    async def tmux_list_sessions(target: str | None = None) -> dict:
-        """List all sessions on the target with id, name, window count, etc."""
-        records = await runner.list_records(["list-sessions"], SESSION_FIELDS, target=target)
-        return {"sessions": records}
-
     @mcp.tool()
     async def tmux_has_session(session: str, target: str | None = None) -> dict:
         """Check whether a session exists. Returns {"exists": bool}."""

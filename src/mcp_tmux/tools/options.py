@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from ..formats import FIELD_SEP
-
 
 def register(mcp, runner) -> None:
     @mcp.tool()
@@ -58,21 +56,6 @@ def register(mcp, runner) -> None:
             key, _, val = line.partition(" ")
             options[key] = val.strip().strip('"')
         return {"options": options}
-
-    @mcp.tool()
-    async def tmux_list_buffers(target: str | None = None) -> dict:
-        """List paste buffers with their names and sizes."""
-        out = await runner.run_checked(
-            ["list-buffers", "-F", f"#{{buffer_name}}{FIELD_SEP}#{{buffer_size}}"],
-            target=target,
-        )
-        buffers = []
-        for line in out.splitlines():
-            if not line:
-                continue
-            name, _, size = line.partition(FIELD_SEP)
-            buffers.append({"name": name, "size": size})
-        return {"buffers": buffers}
 
     @mcp.tool()
     async def tmux_set_buffer(

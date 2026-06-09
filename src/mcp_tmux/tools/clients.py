@@ -2,24 +2,10 @@
 
 from __future__ import annotations
 
-from ..formats import CLIENT_FIELDS, FIELD_SEP
+from ..formats import FIELD_SEP
 
 
 def register(mcp, runner) -> None:
-    @mcp.tool()
-    async def tmux_list_clients(session: str | None = None, target: str | None = None) -> dict:
-        """List clients attached to the server.
-
-        With `session`, lists only the clients attached to that session (-t).
-        Each client has its tty, attached session, and size. Returns
-        {"clients": [...]}.
-        """
-        cmd = ["list-clients"]
-        if session:
-            cmd += ["-t", session]
-        records = await runner.list_records(cmd, CLIENT_FIELDS, target=target)
-        return {"clients": records}
-
     @mcp.tool()
     async def tmux_server_info(target: str | None = None) -> dict:
         """Report basic server facts: pid, socket path, and tmux version.

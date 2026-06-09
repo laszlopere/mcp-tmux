@@ -289,17 +289,20 @@ key. Clean break — old per-kind tools removed (pre-PyPI, see 6.4 decision).
 
 Subtotal: 14 tools → 6. **Net −8.**
 
-### 6.2 — Soft merge (return key normalizes; arguments vary — decide explicitly)
+### 6.2 — Soft merge (return key normalizes; arguments vary — decide explicitly) ✅ DONE
 
-[ ] **`tmux_list(kind, scope=None)`** ← list_sessions/windows/panes/clients/
-      buffers (5→1, −4). Normalize the per-kind return key to a uniform
-      `{items: [...], kind}`. `scope` is the optional target (session for
-      windows/clients, window-or-session for panes). **Open question:** this is
-      the most disruptive merge — `list_panes` has *two* scope axes
-      (window vs session). Options: (a) single `scope` + a `scope_kind` hint,
-      (b) keep `tmux_list_panes` standalone and merge only the single-scope
-      ones, (c) skip the list merge entirely. **Recommend (b).** Exclude
-      `tmux_list_keys` regardless (its return is text+lines, not records).
+[x] **`tmux_list(kind, scope=None)`** ← list_sessions/windows/clients/buffers
+      (4→1, −3). Chose option **(b)**: merge only the single-scope kinds and
+      keep `tmux_list_panes` standalone (it has *two* scope axes, window vs
+      session). `tmux_list_keys` excluded too (its return is text+lines, not
+      records). Lives in `tools/merged.py`; `kind ∈ {session, window, client,
+      buffer}` validated via `require_kind()`; `scope` is the optional `-t`
+      session for `window`/`client` (windows fall back to `-a`, clients to
+      all), ignored for `session`/`buffer`. Return normalized to
+      `{items: [...], kind}`. Tagged READ_ONLY in `_util.py`; old per-kind list
+      tools removed (clean break, pre-PyPI). Tests in `test_tools_argv.py`
+      (per-kind argv + bad-kind ToolError), plus `test_p2`/`test_functional`
+      call the merged name. 171 passing. Tool count 63 → 60.
 
 ### 6.3 — Explicitly NOT merged (distinct signatures / high-traffic primitives)
 
@@ -333,6 +336,84 @@ set+show pairs, `tmux_bind/unbind/list_keys`, the `copy_*` trio, the
       (`server.py` INSTRUCTIONS) updated to describe the `kind`-discriminated
       tools. Count drops from 71 to 63 (strong merges only; the 6.2 list merge
       would take it to ~59).
+
+---
+
+## P7 — Toolsets
+
+**Problem.** Even after P6, the curated surface is ~60 tools — high for an MCP
+server (most ship 5–25; only large API-wrappers like GitHub's reach this tier,
+and they manage it with *toolsets*). The cost is twofold: ~35k tokens of schema
+resident per session, and selection accuracy degrading as near-identical tools
+pile up. P6 consolidation shrinks the count linearly; toolset gating instead
+shrinks what any one session pays for, which is what actually drives both costs.
+
+**Goal.** Ship a lean always-on `core` plus opt-in toolsets, selected via a
+`toolsets = [...]` config key (or `MCP_TMUX_TOOLSETS` env var). A default
+session loads ~16 tools instead of 63 (~75% cut; ~26k schema tokens deferred),
+with the heavy families loading only on request. The escape hatch matters:
+`tmux_command` is always in `core`, so anything gated out is still reachable via
+raw passthrough — a lean core never hard-blocks a task.
+
+### 7.0 — Toolset inventory (60 tools → 1 core + 8 opt-in)
+
+> **Note (post-6.2):** the per-kind list tools are now the single merged
+> `tmux_list(kind=session/window/client/buffer)`. A single tool can't be split
+> across toolsets, so `tmux_list` goes in **core** (it subsumes the old
+> `list_sessions`/`list_windows` core picks *and* the `list_buffers`/
+> `list_clients` opt-in picks). Drop those four names from the lists below and
+> add `tmux_list` to core; `buffers`/`clients` toolsets shrink by one each.
+
+**`core`** (always loaded) — the create → send → read loop + escape hatch:
+- passthrough: `tmux_command`, `tmux_query`, `tmux_version`, `tmux_list_targets`
+- sessions: `tmux_has_session`, `tmux_new_session`
+- io: `tmux_send_keys`, `tmux_capture_pane`
+- windows: `tmux_new_window`
+- panes: `tmux_list_panes`, `tmux_split_window`
+- merged: `tmux_list`, `tmux_kill`, `tmux_rename`, `tmux_select`
+
+Opt-in (47 across 8 groups):
+
+| Toolset | # | Tools |
+|---|---|---|
+| `automation` | 3 | `wait_for_text`, `wait_for_idle`, `run` — **candidate to promote into core** for an agent server |
+| `layout` | 15 | `next_layout`, `move_window`, `select_layout`, `resize_pane`, `set_pane_title`, `clear_history`, `swap`, `last`, `respawn`, `link_window`, `unlink_window`, `break_pane`, `join_pane`, `find_window`, `pipe_pane` |
+| `buffers` | 6 | `list_buffers`, `set_buffer`, `paste_buffer`, `delete_buffer`, `save_buffer`, `load_buffer` |
+| `config` | 8 | `set_option`, `show_options`, `set_environment`, `show_environment`, `set_hook`, `show_hooks`, `run_shell`, `if_shell` |
+| `keybindings` | 3 | `list_keys`, `bind_key`, `unbind_key` |
+| `copymode` | 3 | `copy_mode`, `copy_scroll`, `copy_search` |
+| `clients` | 3 | `list_clients`, `server_info`, `display_message` |
+| `stream` | 6 | `stream_start`, `stream_resize`, `stream_read`, `stream_send`, `stream_list`, `stream_stop` |
+
+### 7.1 — Implementation
+
+[ ] **Config plumbing.** Add `toolsets: list[str]` to config (and
+      `MCP_TMUX_TOOLSETS` env var, comma-separated). Default = `["core",
+      "automation"]` (agent-facing essentials). Special value `["all"]` keeps
+      today's full surface (back-compat). Unknown name → startup error listing
+      valid toolsets.
+[ ] **Gating in `register_all`.** Registration is already module-granular in
+      `tools/__init__.py`, so gating is mostly conditional `register()` calls
+      keyed on the active set. Pass the active toolset set into each module's
+      `register()` so within-module splits work.
+[ ] **Module split.** `options.py` mixes `set/show_options` (→ `config`) with
+      the buffer family (→ `buffers`). Split it (or have `register()` select per
+      tool) so the two toolsets are independent.
+[ ] **Within-module core picks.** `windows`, `panes`, `merged` each contribute
+      some tools to `core` and the rest to `layout`. Their `register()` needs
+      the active set rather than being all-or-nothing — localized, not a rewrite.
+[ ] **Tests.** Parametrize over toolset selections: assert `core`-only registers
+      exactly the 16, assert each opt-in adds its expected names, assert `["all"]`
+      matches the current full count, assert an unknown name errors.
+[ ] **Docs.** README tool table grouped by toolset + a "Selecting toolsets"
+      section; `server.py` INSTRUCTIONS note the default set and how to widen it.
+
+### 7.2 — Optional: dynamic mode (defer unless static proves too rigid)
+
+[ ] **`tmux_enable_toolset(name)` meta-tool** (GitHub's approach) — lets a client
+      starting with only `core` pull in `stream`/`layout`/… mid-session without a
+      restart. More plumbing (runtime re-registration); only worth it if static
+      config is too inflexible in practice.
 
 ---
 

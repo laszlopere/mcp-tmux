@@ -42,8 +42,8 @@ async def test_server_info_and_list_clients(runner):
     assert info["supported"] is True
 
     # Detached session => no attached clients, but the call must succeed.
-    clients = _tool_json(await mcp.call_tool("tmux_list_clients", {}))
-    assert isinstance(clients["clients"], list)
+    clients = _tool_json(await mcp.call_tool("tmux_list", {"kind": "client"}))
+    assert isinstance(clients["items"], list)
 
 
 async def test_break_and_join_pane_roundtrip(runner):

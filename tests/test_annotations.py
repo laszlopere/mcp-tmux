@@ -14,7 +14,7 @@ def test_read_only_tools_annotated():
     mcp = build_server(config={"defaults": {}, "targets": {}})
     tools = _tools_by_name(mcp)
     assert tools["tmux_capture_pane"].annotations.readOnlyHint is True
-    assert tools["tmux_list_sessions"].annotations.readOnlyHint is True
+    assert tools["tmux_list"].annotations.readOnlyHint is True
 
 
 def test_destructive_tools_annotated():

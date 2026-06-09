@@ -2,22 +2,10 @@
 
 from __future__ import annotations
 
-from ..formats import FIELD_SEP, WINDOW_FIELDS, parse_records
+from ..formats import FIELD_SEP, parse_records
 
 
 def register(mcp, runner) -> None:
-    @mcp.tool()
-    async def tmux_list_windows(session: str | None = None, target: str | None = None) -> dict:
-        """List windows. With `session`, lists that session's windows; otherwise
-        all windows on the server (-a)."""
-        cmd = ["list-windows"]
-        if session:
-            cmd += ["-t", session]
-        else:
-            cmd += ["-a"]
-        records = await runner.list_records(cmd, WINDOW_FIELDS, target=target)
-        return {"windows": records}
-
     @mcp.tool()
     async def tmux_new_window(
         session: str | None = None,

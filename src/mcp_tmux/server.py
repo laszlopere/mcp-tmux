@@ -26,8 +26,10 @@ not covered by a dedicated tool.
 
 Several tools take a `kind` discriminator rather than one tool per entity:
 tmux_kill (session/window/pane/server), tmux_rename (session/window),
-tmux_select / tmux_last / tmux_swap (window/pane), tmux_respawn (pane/window).
-E.g. tmux_kill(kind="window", id="dev:2") or tmux_kill(kind="server").
+tmux_select / tmux_last / tmux_swap (window/pane), tmux_respawn (pane/window),
+tmux_list (session/window/client/buffer). E.g. tmux_kill(kind="window",
+id="dev:2"), tmux_kill(kind="server"), or tmux_list(kind="window", scope="dev").
+Panes are listed by their own tmux_list_panes (it has two scope axes).
 """
 
 
