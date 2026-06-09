@@ -210,6 +210,132 @@ Small ergonomics:
       `mcp-tmux` name permanently) so `uvx mcp-tmux` resolves from the index, then
       `git push origin master --tags`. Build is reproducible from `uv.lock` (4.4).
 
+## P6 — Consolidate same-signature tools
+
+**Problem.** The curated surface has grown to **71 tools**. Many are
+near-duplicates that differ only in *which entity kind* they act on
+(session / window / pane / server) while sharing the **exact same argument
+shape and return shape**. A client that loads all 71 pays a real
+discovery/selection cost. tmux itself separates `kill-session` / `kill-window`
+/ `kill-pane`; we don't have to mirror that 1:1 — an MCP client picks a tool by
+name+description, and a single `tmux_kill(kind=...)` is just as discoverable as
+three.
+
+**Goal.** Merge each *signature-equivalence class* into one tool that takes a
+`kind` discriminator. We merge ONLY where arguments AND return value match (or
+trivially normalize); anything with a distinct signature stays standalone.
+
+Discriminator is named **`kind`** (not `type` — shadows a builtin), validated
+against an explicit allow-list, raising `ValueError` (→ `ToolError`) on a bad
+value. Return dicts gain a `"kind"` key so callers can tell what acted.
+
+### 6.0 — Inventory: signature-equivalence classes
+
+Columns are the *normalized* signature (the universal `target` is omitted; the
+entity-id param is shown generically as `id`).
+
+**Class K — destroy** `(id, )` → `{killed, <noun>}` — all DESTRUCTIVE:
+| tool | id param | return |
+|---|---|---|
+| `tmux_kill_session` | `session` | `{killed, session}` |
+| `tmux_kill_window` | `window` | `{killed, window}` |
+| `tmux_kill_pane` | `target_pane` | `{killed, pane}` |
+| `tmux_kill_server` | *(none)* | `{killed}` |
+
+**Class R — rename** `(id, new_name)` → `{renamed, name}`:
+| `tmux_rename_session` | `session` | | `tmux_rename_window` | `window` |
+
+**Class SEL — activate** `(id, )` → `{selected: id}`:
+| `tmux_select_window` | `window` | | `tmux_select_pane` | `target_pane` |
+
+**Class SWAP** `(src, dst)` → `{swapped, src, dst}` — *byte-identical*:
+| `tmux_swap_window` | | `tmux_swap_pane` |
+
+**Class RESPAWN** `(id, command=None, kill=False, start_directory=None, env=None)`
+→ `{respawned, <noun>, notes?}` — *byte-identical* but for the id-param/noun:
+| `tmux_respawn_pane` | `target_pane` | | `tmux_respawn_window` | `window` |
+
+**Class LAST — nav-to-previous** `(scope=None, )` → `{selected: "last"}`:
+| `tmux_last_window` | scope=`session` | | `tmux_last_pane` | scope=`window` |
+
+**Class LIST — enumerate** `(scope?, )` → `{<plural>: [...]}` — return key
+differs, scope args differ; normalizes to `{items, kind}` — all READ_ONLY:
+| `tmux_list_sessions` | `()` | `{sessions}` |
+| `tmux_list_windows` | `(session)` | `{windows}` |
+| `tmux_list_panes` | `(window, session)` | `{panes}` |
+| `tmux_list_clients` | `(session)` | `{clients}` |
+| `tmux_list_buffers` | `()` | `{buffers}` |
+| `tmux_list_keys` | `(table)` | `{keys, lines}` ← *not* a record list; **exclude** |
+
+### 6.1 — Strong merges (identical arg + return; do these first)
+
+[ ] **`tmux_kill(kind, id=None)`** ← kill_session/window/pane/server (4→1, −3).
+      `kind ∈ {session, window, pane, server}`; `id` required for all but
+      `server` (validate). Maps to `kill-<kind> [-t id]`. Returns
+      `{killed: True, kind, id}`. Stays in `DESTRUCTIVE`.
+[ ] **`tmux_respawn(kind, id, command=None, kill=False, start_directory=None,
+      env=None)`** ← respawn_pane/window (2→1, −1). Already byte-identical; the
+      `env`/`respawn_env` capability gate is shared. `kind ∈ {pane, window}`.
+[ ] **`tmux_swap(kind, src, dst)`** ← swap_window/pane (2→1, −1). Byte-identical
+      return today. `kind ∈ {window, pane}` → `swap-<kind> -s src -t dst`.
+[ ] **`tmux_rename(kind, id, new_name)`** ← rename_session/window (2→1, −1).
+[ ] **`tmux_select(kind, id)`** ← select_window/pane (2→1, −1).
+[ ] **`tmux_last(kind, scope=None)`** ← last_window/last_pane (2→1, −1). `scope`
+      is the optional `-t` (a session for windows, a window for panes).
+
+Subtotal: 14 tools → 6. **Net −8.**
+
+### 6.2 — Soft merge (return key normalizes; arguments vary — decide explicitly)
+
+[ ] **`tmux_list(kind, scope=None)`** ← list_sessions/windows/panes/clients/
+      buffers (5→1, −4). Normalize the per-kind return key to a uniform
+      `{items: [...], kind}`. `scope` is the optional target (session for
+      windows/clients, window-or-session for panes). **Open question:** this is
+      the most disruptive merge — `list_panes` has *two* scope axes
+      (window vs session). Options: (a) single `scope` + a `scope_kind` hint,
+      (b) keep `tmux_list_panes` standalone and merge only the single-scope
+      ones, (c) skip the list merge entirely. **Recommend (b).** Exclude
+      `tmux_list_keys` regardless (its return is text+lines, not records).
+
+### 6.3 — Explicitly NOT merged (distinct signatures / high-traffic primitives)
+
+Keep standalone — different args, different returns, or core I/O where an
+abstract `kind` would hurt clarity: `tmux_command`, `tmux_query`,
+`tmux_send_keys`, `tmux_capture_pane`, `tmux_run`, `tmux_wait_for_text`,
+`tmux_wait_for_idle`, `tmux_new_session`/`new_window`/`split_window`
+(creation args diverge widely), `tmux_resize_pane`, `tmux_select_layout`,
+`tmux_next_layout`, `tmux_set_pane_title`, `tmux_clear_history`, the buffer
+set (`set/paste/delete/save/load_buffer`), the option/environment/hook
+set+show pairs, `tmux_bind/unbind/list_keys`, the `copy_*` trio, the
+`stream_*` six, `tmux_link/unlink/break/join/find/pipe`, `tmux_version`,
+`tmux_list_targets`, `tmux_server_info`, `tmux_display_message`.
+
+### 6.4 — Cross-cutting implementation notes
+
+[ ] **Annotations stay clean.** Each equivalence class is *uniformly* one
+      category — Class K is all-destructive, Class LIST is all-read-only, the
+      rest are neither — so `tools/_util.py` just lists the new merged name in
+      `DESTRUCTIVE` (`tmux_kill`) / `READ_ONLY` (`tmux_list`) and drops the old
+      per-kind names. No per-`kind` annotation branching needed.
+[ ] **Validation pattern.** A small `_require_kind(kind, allowed)` helper in
+      `_util.py` (raises `ValueError(f"kind must be one of {allowed}")`); reuse
+      across merged tools. `tmux_kill` additionally validates `id` presence per
+      kind.
+[ ] **Tests.** Extend `tests/test_tools_argv.py` — assert each `kind` produces
+      the correct argv (`kill-session -t s`, `swap-pane -s a -t b`, …) and that
+      a bad `kind` / missing `id` raises `ToolError`. Net: replaces ~14
+      per-tool argv tests with ~6 parametrized ones.
+[ ] **Back-compat decision (needs a call).** Either (a) **clean break** — drop
+      old names, bump to 0.2.0, update README tool table; or (b) **keep thin
+      aliases** for one release (old `tmux_kill_session` delegates to
+      `tmux_kill(kind="session")`) to avoid breaking existing client configs.
+      Pre-PyPI-publish (see 4.6) is the cheapest moment for a clean break.
+[ ] **Docs.** Update the README tool table and `## tmux` server instructions to
+      describe the merged tools; the count drops from 71 to ~63 (strong merges)
+      or ~59 (with the list merge).
+
+---
+
 ## 6. Notes / decisions to revisit
 
 [x] 6.1. `send-keys` into an **attached** session is visible to whoever's
