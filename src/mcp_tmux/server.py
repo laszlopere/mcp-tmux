@@ -7,7 +7,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from . import prompts, resources
+from . import resources
 from .config import load_config
 from .runner import TmuxRunner
 from .tools import register_all
@@ -49,5 +49,4 @@ def build_server(config: dict[str, Any] | None = None, config_path: Path | None 
     enabled = resolve_enabled(select_toolsets(cfg))
     register_all(mcp, runner, enabled)
     resources.register(mcp, runner)
-    prompts.register(mcp)
     return mcp
