@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from ..formats import FIELD_SEP
+from ._util import toolset_gate
 
 
-def register(mcp, runner) -> None:
-    @mcp.tool()
+def register(mcp, runner, enabled) -> None:
+    tool = toolset_gate(mcp, enabled)
+
+    @tool()
     async def tmux_server_info(target: str | None = None) -> dict:
         """Report basic server facts: pid, socket path, and tmux version.
 
@@ -29,7 +32,7 @@ def register(mcp, runner) -> None:
             "supported": caps.supported,
         }
 
-    @mcp.tool()
+    @tool()
     async def tmux_display_message(
         message: str,
         target_client: str | None = None,

@@ -13,11 +13,13 @@ See TODO P6 for the equivalence-class inventory and the merge rationale.
 from __future__ import annotations
 
 from ..formats import CLIENT_FIELDS, FIELD_SEP, SESSION_FIELDS, WINDOW_FIELDS
-from ._util import require_kind
+from ._util import require_kind, toolset_gate
 
 
-def register(mcp, runner) -> None:
-    @mcp.tool()
+def register(mcp, runner, enabled) -> None:
+    tool = toolset_gate(mcp, enabled)
+
+    @tool()
     async def tmux_list(kind: str, scope: str | None = None, target: str | None = None) -> dict:
         """List sessions, windows, clients, or paste buffers.
 
@@ -60,7 +62,7 @@ def register(mcp, runner) -> None:
                 items.append({"name": name, "size": size})
         return {"items": items, "kind": kind}
 
-    @mcp.tool()
+    @tool()
     async def tmux_kill(kind: str, id: str | None = None, target: str | None = None) -> dict:
         """Kill a session, window, pane, or the whole server (destructive).
 
@@ -80,7 +82,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked([f"kill-{kind}", "-t", id], target=target)
         return {"killed": True, "kind": kind, "id": id}
 
-    @mcp.tool()
+    @tool()
     async def tmux_rename(kind: str, id: str, new_name: str, target: str | None = None) -> dict:
         """Rename a session or window.
 
@@ -93,7 +95,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked([f"rename-{kind}", "-t", id, new_name], target=target)
         return {"renamed": True, "kind": kind, "name": new_name}
 
-    @mcp.tool()
+    @tool()
     async def tmux_select(kind: str, id: str, target: str | None = None) -> dict:
         """Make a window or pane the active one.
 
@@ -106,7 +108,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked([f"select-{kind}", "-t", id], target=target)
         return {"selected": id, "kind": kind}
 
-    @mcp.tool()
+    @tool()
     async def tmux_last(kind: str, scope: str | None = None, target: str | None = None) -> dict:
         """Switch to the previously selected window or pane.
 
@@ -123,7 +125,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked(args, target=target)
         return {"selected": "last", "kind": kind}
 
-    @mcp.tool()
+    @tool()
     async def tmux_swap(kind: str, src: str, dst: str, target: str | None = None) -> dict:
         """Swap two windows or two panes.
 
@@ -136,7 +138,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked([f"swap-{kind}", "-s", src, "-t", dst], target=target)
         return {"swapped": True, "kind": kind, "src": src, "dst": dst}
 
-    @mcp.tool()
+    @tool()
     async def tmux_respawn(
         kind: str,
         id: str,

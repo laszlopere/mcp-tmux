@@ -7,6 +7,9 @@ local tmux and any ad-hoc ``user@host`` SSH target.
 
 Schema::
 
+    toolsets = ["core", "automation"]   # optional; which tool groups to load
+                                        # (see mcp_tmux.toolsets); ["all"] = full
+
     [defaults]
     timeout = 15          # seconds per tmux invocation
     socket_name = "..."   # optional default `tmux -L` socket
@@ -55,7 +58,7 @@ def load_config(path: Path | None = None) -> dict[str, Any]:
     """
     path = path or default_config_path()
     if not path.exists():
-        return {"defaults": {}, "targets": {}}
+        return {"defaults": {}, "targets": {}, "toolsets": None}
 
     with path.open("rb") as fh:
         raw = tomllib.load(fh)
@@ -68,4 +71,10 @@ def load_config(path: Path | None = None) -> dict[str, Any]:
         if not isinstance(spec, dict) or "host" not in spec:
             raise ValueError(f"target '{name}' must be a table with a 'host' key")
 
-    return {"defaults": defaults, "targets": targets}
+    toolsets = raw.get("toolsets")
+    if toolsets is not None and (
+        not isinstance(toolsets, list) or not all(isinstance(t, str) for t in toolsets)
+    ):
+        raise ValueError("config 'toolsets' must be a list of toolset names")
+
+    return {"defaults": defaults, "targets": targets, "toolsets": toolsets}

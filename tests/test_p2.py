@@ -17,7 +17,11 @@ from mcp_tmux.server import build_server
 
 pytestmark = pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux not installed")
 
-CONFIG = {"defaults": {"socket_name": "mcp-tmux-p2", "timeout": 10}, "targets": {}}
+CONFIG = {
+    "defaults": {"socket_name": "mcp-tmux-p2", "timeout": 10},
+    "targets": {},
+    "toolsets": ["all"],
+}
 
 
 @pytest.fixture()

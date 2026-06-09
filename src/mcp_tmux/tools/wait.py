@@ -13,6 +13,7 @@ import time
 import uuid
 
 from ._capture import capture_text
+from ._util import toolset_gate
 
 # Default polling cadence (seconds) for all waiters.
 DEFAULT_POLL = 0.25
@@ -41,8 +42,10 @@ def _extract_run_output(content: str, beg: str, end: str) -> tuple[int, str] | N
     return None
 
 
-def register(mcp, runner) -> None:
-    @mcp.tool()
+def register(mcp, runner, enabled) -> None:
+    tool = toolset_gate(mcp, enabled)
+
+    @tool()
     async def tmux_wait_for_text(
         target_pane: str,
         pattern: str,
@@ -89,7 +92,7 @@ def register(mcp, runner) -> None:
                 }
             await asyncio.sleep(poll_interval)
 
-    @mcp.tool()
+    @tool()
     async def tmux_wait_for_idle(
         target_pane: str,
         idle_seconds: float = 1.0,
@@ -118,7 +121,7 @@ def register(mcp, runner) -> None:
             if now >= deadline:
                 return {"idle": False, "elapsed": round(now - t0, 3), "content": cur}
 
-    @mcp.tool()
+    @tool()
     async def tmux_run(
         target_pane: str,
         command: str,

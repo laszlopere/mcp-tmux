@@ -12,12 +12,14 @@ you need to follow output as it happens (a build, a tail, a long-running job).
 from __future__ import annotations
 
 from ..control import ControlManager
+from ._util import toolset_gate
 
 
-def register(mcp, runner) -> None:
+def register(mcp, runner, enabled) -> None:
+    tool = toolset_gate(mcp, enabled)
     manager = ControlManager(runner)
 
-    @mcp.tool()
+    @tool()
     async def tmux_stream_start(
         session: str,
         target: str | None = None,
@@ -47,7 +49,7 @@ def register(mcp, runner) -> None:
             "alive": conn.alive,
         }
 
-    @mcp.tool()
+    @tool()
     async def tmux_stream_resize(stream_id: str, width: int, height: int) -> dict:
         """Set a stream's control-client size (refresh-client -C WxH, tmux 2.4+).
 
@@ -62,7 +64,7 @@ def register(mcp, runner) -> None:
         await conn.refresh_size(width, height)
         return {"stream_id": stream_id, "width": width, "height": height}
 
-    @mcp.tool()
+    @tool()
     async def tmux_stream_read(
         stream_id: str,
         timeout: float = 10.0,
@@ -95,7 +97,7 @@ def register(mcp, runner) -> None:
             strip_ansi=strip_ansi,
         )
 
-    @mcp.tool()
+    @tool()
     async def tmux_stream_send(stream_id: str, command: str, timeout: float = 10.0) -> dict:
         """Run a tmux command over the stream's control connection.
 
@@ -108,13 +110,13 @@ def register(mcp, runner) -> None:
         reply = await conn.send_command(command, timeout=timeout)
         return {"reply": reply}
 
-    @mcp.tool()
+    @tool()
     async def tmux_stream_list() -> dict:
         """List active control-mode streams and their state. Returns
         {"streams": [{stream_id, session, target, alive, buffered, panes, ...}]}."""
         return {"streams": manager.list()}
 
-    @mcp.tool()
+    @tool()
     async def tmux_stream_stop(stream_id: str) -> dict:
         """Stop a stream: detach the control client (the session keeps running)
         and free the connection. Returns {"stopped": stream_id}."""

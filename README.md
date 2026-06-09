@@ -114,26 +114,46 @@ python -m mcp_tmux       # stdio server
 
 ## Tools (overview)
 
-| Group | Tools |
+Tools are grouped into **toolsets** so a session only pays the schema cost of
+what it needs. `core` is always loaded; the rest are opt-in (see
+[Selecting toolsets](#selecting-toolsets)). A default session loads
+`core` + `automation` (~18 tools); `["all"]` loads the full surface (60).
+
+| Toolset | Tools |
 |---|---|
-| Global / passthrough | `tmux_command`, `tmux_query`, `tmux_version`, `tmux_list_targets` |
-| Consolidated (`kind=…`) | `tmux_list`, `tmux_kill`, `tmux_rename`, `tmux_select`, `tmux_last`, `tmux_swap`, `tmux_respawn` |
-| Sessions | `tmux_new_session`, `tmux_has_session` |
-| Windows | `tmux_new_window`, `tmux_move_window`, `tmux_next_layout` |
-| Panes | `tmux_list_panes`, `tmux_split_window`, `tmux_resize_pane`, `tmux_select_layout`, `tmux_set_pane_title`, `tmux_clear_history` |
-| I/O | `tmux_send_keys`, `tmux_capture_pane` |
-| Wait / sync | `tmux_wait_for_text`, `tmux_wait_for_idle`, `tmux_run` |
-| Options / buffers | `tmux_set_option`, `tmux_show_options`, `tmux_set_buffer`, `tmux_paste_buffer`, `tmux_delete_buffer` |
-| Clients / server | `tmux_server_info`, `tmux_display_message` |
-| Plumbing | `tmux_link_window`, `tmux_unlink_window`, `tmux_break_pane`, `tmux_join_pane`, `tmux_find_window`, `tmux_pipe_pane` |
-| Hooks / scripting | `tmux_set_hook`, `tmux_show_hooks`, `tmux_run_shell`, `tmux_if_shell` |
-| Keys / bindings | `tmux_list_keys`, `tmux_bind_key`, `tmux_unbind_key` |
-| Copy mode | `tmux_copy_mode`, `tmux_copy_scroll`, `tmux_copy_search` |
-| Streaming (control mode) | `tmux_stream_start`, `tmux_stream_read`, `tmux_stream_send`, `tmux_stream_list`, `tmux_stream_stop` |
+| **core** *(always loaded)* | `tmux_command`, `tmux_query`, `tmux_version`, `tmux_list_targets`, `tmux_has_session`, `tmux_new_session`, `tmux_send_keys`, `tmux_capture_pane`, `tmux_new_window`, `tmux_list_panes`, `tmux_split_window`, `tmux_list`, `tmux_kill`, `tmux_rename`, `tmux_select` |
+| `automation` *(default)* | `tmux_wait_for_text`, `tmux_wait_for_idle`, `tmux_run` |
+| `layout` | `tmux_next_layout`, `tmux_move_window`, `tmux_select_layout`, `tmux_resize_pane`, `tmux_set_pane_title`, `tmux_clear_history`, `tmux_swap`, `tmux_last`, `tmux_respawn`, `tmux_link_window`, `tmux_unlink_window`, `tmux_break_pane`, `tmux_join_pane`, `tmux_find_window`, `tmux_pipe_pane` |
+| `buffers` | `tmux_set_buffer`, `tmux_paste_buffer`, `tmux_delete_buffer`, `tmux_save_buffer`, `tmux_load_buffer` |
+| `config` | `tmux_set_option`, `tmux_show_options`, `tmux_set_environment`, `tmux_show_environment`, `tmux_set_hook`, `tmux_show_hooks`, `tmux_run_shell`, `tmux_if_shell` |
+| `keybindings` | `tmux_list_keys`, `tmux_bind_key`, `tmux_unbind_key` |
+| `copymode` | `tmux_copy_mode`, `tmux_copy_scroll`, `tmux_copy_search` |
+| `clients` | `tmux_server_info`, `tmux_display_message` |
+| `stream` | `tmux_stream_start`, `tmux_stream_resize`, `tmux_stream_read`, `tmux_stream_send`, `tmux_stream_list`, `tmux_stream_stop` |
 
 Every tool accepts an optional `target` (omit / `"local"`, a named profile, or
-`user@host`). For anything not covered by a dedicated tool, use
-`tmux_command(args=[...])`.
+`user@host`). For anything not covered by a dedicated tool — including anything
+gated out of the active toolsets — use `tmux_command(args=[...])`, which is in
+`core` and reaches every tmux subcommand.
+
+### Selecting toolsets
+
+Pick toolsets with the `toolsets` config key or the `MCP_TMUX_TOOLSETS`
+environment variable (comma-separated; env wins over config). `core` is always
+included. The special value `all` loads every toolset. An unknown name is a
+startup error listing the valid toolsets.
+
+```toml
+# ~/.config/mcp-tmux/config.toml
+toolsets = ["core", "automation", "stream"]   # or ["all"] for the full surface
+```
+
+```jsonc
+// or in the MCP server env, e.g. Claude Code's mcp config:
+"env": { "MCP_TMUX_TOOLSETS": "core,layout,stream" }
+```
+
+With no setting, the default is `["core", "automation"]`.
 
 The **consolidated** tools take a `kind` discriminator instead of having one
 tool per entity — e.g. `tmux_kill(kind="window", id="dev:2")`,
@@ -203,6 +223,9 @@ Optional TOML at `~/.config/mcp-tmux/config.toml` (override with
 `MCP_TMUX_CONFIG`):
 
 ```toml
+# toolsets = ["core", "automation"]   # which tool groups to load; ["all"] = full
+#                                      # (also via MCP_TMUX_TOOLSETS, env wins)
+
 [defaults]
 timeout = 15                 # seconds per tmux invocation
 # socket_name = "work"       # default `tmux -L`

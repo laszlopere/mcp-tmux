@@ -31,7 +31,11 @@ from mcp_tmux.runner import TmuxRunner
 from mcp_tmux.server import build_server
 
 HAVE_TMUX = shutil.which("tmux") is not None
-LOCAL_CONFIG = {"defaults": {"socket_name": "mcp-tmux-func", "timeout": 15}, "targets": {}}
+LOCAL_CONFIG = {
+    "defaults": {"socket_name": "mcp-tmux-func", "timeout": 15},
+    "targets": {},
+    "toolsets": ["all"],
+}
 
 REMOTE_TARGET = os.environ.get("MCP_TMUX_FUNC_TARGET")
 REMOTE_SESSION = os.environ.get("MCP_TMUX_FUNC_SESSION")
@@ -177,7 +181,7 @@ async def test_functional_local():
 
 @pytest.mark.skipif(not REMOTE_TARGET, reason="set MCP_TMUX_FUNC_TARGET to run the remote workflow")
 async def test_functional_remote():
-    config = {"defaults": {"timeout": 25}, "targets": {}}
+    config = {"defaults": {"timeout": 25}, "targets": {}, "toolsets": ["all"]}
     runner = TmuxRunner(config)
     mcp = build_server(config=config)
     target = REMOTE_TARGET

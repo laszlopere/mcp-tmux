@@ -7,6 +7,8 @@ capabilities.
 
 from __future__ import annotations
 
+from ._util import toolset_gate
+
 
 async def _table_flag(runner, table: str | None, target: str | None) -> list[str]:
     if not table:
@@ -15,8 +17,10 @@ async def _table_flag(runner, table: str | None, target: str | None) -> list[str
     return ["-T", table] if caps.has("key_tables") else ["-t", table]
 
 
-def register(mcp, runner) -> None:
-    @mcp.tool()
+def register(mcp, runner, enabled) -> None:
+    tool = toolset_gate(mcp, enabled)
+
+    @tool()
     async def tmux_list_keys(table: str | None = None, target: str | None = None) -> dict:
         """List key bindings, optionally restricted to one key `table` (e.g.
         "prefix", "root", "copy-mode"). Returns the raw bindings as
@@ -26,7 +30,7 @@ def register(mcp, runner) -> None:
         lines = [ln for ln in out.splitlines() if ln.strip()]
         return {"keys": out, "lines": lines}
 
-    @mcp.tool()
+    @tool()
     async def tmux_bind_key(
         key: str,
         command: list[str],
@@ -54,7 +58,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked(args, target=target)
         return {"bound": key}
 
-    @mcp.tool()
+    @tool()
     async def tmux_unbind_key(
         key: str | None = None,
         table: str | None = None,

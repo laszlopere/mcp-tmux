@@ -385,28 +385,39 @@ Opt-in (47 across 8 groups):
 | `clients` | 3 | `list_clients`, `server_info`, `display_message` |
 | `stream` | 6 | `stream_start`, `stream_resize`, `stream_read`, `stream_send`, `stream_list`, `stream_stop` |
 
-### 7.1 — Implementation
+### 7.1 — Implementation ✅ DONE
 
-[ ] **Config plumbing.** Add `toolsets: list[str]` to config (and
-      `MCP_TMUX_TOOLSETS` env var, comma-separated). Default = `["core",
-      "automation"]` (agent-facing essentials). Special value `["all"]` keeps
-      today's full surface (back-compat). Unknown name → startup error listing
-      valid toolsets.
-[ ] **Gating in `register_all`.** Registration is already module-granular in
-      `tools/__init__.py`, so gating is mostly conditional `register()` calls
-      keyed on the active set. Pass the active toolset set into each module's
-      `register()` so within-module splits work.
-[ ] **Module split.** `options.py` mixes `set/show_options` (→ `config`) with
-      the buffer family (→ `buffers`). Split it (or have `register()` select per
-      tool) so the two toolsets are independent.
-[ ] **Within-module core picks.** `windows`, `panes`, `merged` each contribute
-      some tools to `core` and the rest to `layout`. Their `register()` needs
-      the active set rather than being all-or-nothing — localized, not a rewrite.
-[ ] **Tests.** Parametrize over toolset selections: assert `core`-only registers
-      exactly the 16, assert each opt-in adds its expected names, assert `["all"]`
-      matches the current full count, assert an unknown name errors.
-[ ] **Docs.** README tool table grouped by toolset + a "Selecting toolsets"
-      section; `server.py` INSTRUCTIONS note the default set and how to widen it.
+New `toolsets.py` holds the inventory (`CORE` + 8 `OPTIONAL` groups = 60 tools),
+`select_toolsets()` (env > config > default precedence) and `resolve_enabled()`
+(maps selected names → active tool-name set; `core` always in; `"all"` = full;
+unknown → `ValueError`). Gating is one `toolset_gate(mcp, enabled)` helper in
+`_util.py` — a drop-in for `mcp.tool()` that registers a tool only if its name
+is enabled; each module took a one-line change (`tool = toolset_gate(...)`,
+`@mcp.tool()` → `@tool()`) and gained an `enabled` param, so within-module
+splits (`options`, `windows`, `panes`, `merged`) fall out for free with no file
+split. 16 new tests in `test_toolsets.py`; 187 passing; ruff + mypy clean.
+
+[x] **Config plumbing.** `toolsets: list[str]` in config (top-level, validated)
+      + `MCP_TMUX_TOOLSETS` env var (comma-separated, wins over config). Default
+      `["core", "automation"]`; `["all"]` = full surface; unknown name →
+      `ValueError` listing valid toolsets.
+[x] **Gating in `register_all`.** `register_all(mcp, runner, enabled)` threads
+      the active tool-name set into every module's `register(mcp, runner,
+      enabled)`; `server.build_server` resolves it via
+      `resolve_enabled(select_toolsets(cfg))`.
+[x] **Module split.** Not needed — `toolset_gate` gates per-tool by name, so
+      `options.py` keeps `set/show_options` (`config`) and the buffer family
+      (`buffers`) in one file with no split.
+[x] **Within-module core picks.** `windows`/`panes`/`merged` contribute some
+      tools to `core` and the rest to `layout`; the per-tool gate handles this
+      with no all-or-nothing branching.
+[x] **Tests.** `test_toolsets.py` parametrizes over selections: `core`-only
+      registers exactly `CORE` (15), default = core+automation (18), each opt-in
+      adds exactly its names, groups are disjoint, `["all"]` = full 60, env
+      overrides config, unknown name errors.
+[x] **Docs.** README tool table regrouped by toolset + a "Selecting toolsets"
+      section + config-schema comment; `server.py` INSTRUCTIONS note the default
+      set and how to widen it.
 
 ### 7.2 — Optional: dynamic mode (defer unless static proves too rigid)
 

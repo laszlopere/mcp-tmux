@@ -7,10 +7,13 @@ observe results.
 from __future__ import annotations
 
 from ._capture import capture_text
+from ._util import toolset_gate
 
 
-def register(mcp, runner) -> None:
-    @mcp.tool()
+def register(mcp, runner, enabled) -> None:
+    tool = toolset_gate(mcp, enabled)
+
+    @tool()
     async def tmux_send_keys(
         target_pane: str,
         text: str | None = None,
@@ -53,7 +56,7 @@ def register(mcp, runner) -> None:
             await runner.run_checked(["send-keys", "-t", target_pane, "Enter"], target=target)
         return {"sent": True, "pane": target_pane}
 
-    @mcp.tool()
+    @tool()
     async def tmux_capture_pane(
         target_pane: str | None = None,
         start: int | str | None = None,

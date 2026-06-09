@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from ._util import toolset_gate
 
-def register(mcp, runner) -> None:
-    @mcp.tool()
+
+def register(mcp, runner, enabled) -> None:
+    tool = toolset_gate(mcp, enabled)
+
+    @tool()
     async def tmux_set_option(
         name: str,
         value: str,
@@ -30,7 +34,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked(args, target=target)
         return {"set": name, "value": value, "scope": scope}
 
-    @mcp.tool()
+    @tool()
     async def tmux_show_options(
         scope: str = "session",
         target_entity: str | None = None,
@@ -57,7 +61,7 @@ def register(mcp, runner) -> None:
             options[key] = val.strip().strip('"')
         return {"options": options}
 
-    @mcp.tool()
+    @tool()
     async def tmux_set_buffer(
         data: str, name: str | None = None, target: str | None = None
     ) -> dict:
@@ -69,7 +73,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked(args, target=target)
         return {"set": True, "name": name}
 
-    @mcp.tool()
+    @tool()
     async def tmux_paste_buffer(
         target_pane: str,
         name: str | None = None,
@@ -85,13 +89,13 @@ def register(mcp, runner) -> None:
         await runner.run_checked(args, target=target)
         return {"pasted": True, "pane": target_pane}
 
-    @mcp.tool()
+    @tool()
     async def tmux_delete_buffer(name: str, target: str | None = None) -> dict:
         """Delete a named paste buffer."""
         await runner.run_checked(["delete-buffer", "-b", name], target=target)
         return {"deleted": name}
 
-    @mcp.tool()
+    @tool()
     async def tmux_save_buffer(
         path: str,
         name: str | None = None,
@@ -116,7 +120,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked(args, target=target)
         return {"saved": path, "name": name, "appended": append}
 
-    @mcp.tool()
+    @tool()
     async def tmux_load_buffer(
         path: str,
         name: str | None = None,

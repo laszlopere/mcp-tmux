@@ -5,16 +5,19 @@ from __future__ import annotations
 from typing import Any
 
 from ..formats import FIELD_SEP, parse_records
+from ._util import toolset_gate
 
 
-def register(mcp, runner) -> None:
-    @mcp.tool()
+def register(mcp, runner, enabled) -> None:
+    tool = toolset_gate(mcp, enabled)
+
+    @tool()
     async def tmux_has_session(session: str, target: str | None = None) -> dict:
         """Check whether a session exists. Returns {"exists": bool}."""
         result = await runner.run(["has-session", "-t", session], target=target)
         return {"exists": result.ok}
 
-    @mcp.tool()
+    @tool()
     async def tmux_new_session(
         name: str | None = None,
         start_directory: str | None = None,

@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from ..formats import FIELD_SEP, parse_records
+from ._util import toolset_gate
 
 
-def register(mcp, runner) -> None:
-    @mcp.tool()
+def register(mcp, runner, enabled) -> None:
+    tool = toolset_gate(mcp, enabled)
+
+    @tool()
     async def tmux_new_window(
         session: str | None = None,
         name: str | None = None,
@@ -40,7 +43,7 @@ def register(mcp, runner) -> None:
         rec = parse_records(out, ["id", "index", "name"])
         return rec[0] if rec else {}
 
-    @mcp.tool()
+    @tool()
     async def tmux_next_layout(window: str | None = None, target: str | None = None) -> dict:
         """Rotate a window to its next preset layout (next-layout).
 
@@ -53,7 +56,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked(args, target=target)
         return {"window": window}
 
-    @mcp.tool()
+    @tool()
     async def tmux_move_window(src: str, dst: str, target: str | None = None) -> dict:
         """Move/renumber a window from `src` to `dst` (e.g. "sess:5")."""
         await runner.run_checked(["move-window", "-s", src, "-t", dst], target=target)

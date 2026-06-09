@@ -11,6 +11,7 @@ from . import resources
 from .config import load_config
 from .runner import TmuxRunner
 from .tools import register_all
+from .toolsets import resolve_enabled, select_toolsets
 
 INSTRUCTIONS = """\
 Drive tmux: create sessions/windows/panes, send keystrokes, and read pane
@@ -30,6 +31,13 @@ tmux_select / tmux_last / tmux_swap (window/pane), tmux_respawn (pane/window),
 tmux_list (session/window/client/buffer). E.g. tmux_kill(kind="window",
 id="dev:2"), tmux_kill(kind="server"), or tmux_list(kind="window", scope="dev").
 Panes are listed by their own tmux_list_panes (it has two scope axes).
+
+Tools are grouped into toolsets; a session loads `core` + `automation` by
+default (the create -> send -> read loop, the wait/run helpers, and the
+`tmux_command` passthrough that can reach anything not loaded). Widen the
+surface with the `toolsets` config key or `MCP_TMUX_TOOLSETS` env var (e.g.
+"core,stream" or "all"). Opt-in groups: automation, layout, buffers, config,
+keybindings, copymode, clients, stream.
 """
 
 
@@ -38,6 +46,7 @@ def build_server(config: dict[str, Any] | None = None, config_path: Path | None 
     cfg = config if config is not None else load_config(config_path)
     runner = TmuxRunner(cfg)
     mcp = FastMCP("tmux", instructions=INSTRUCTIONS)
-    register_all(mcp, runner)
+    enabled = resolve_enabled(select_toolsets(cfg))
+    register_all(mcp, runner, enabled)
     resources.register(mcp, runner)
     return mcp

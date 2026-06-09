@@ -9,6 +9,8 @@ usually simpler than copying a selection.
 
 from __future__ import annotations
 
+from ._util import toolset_gate
+
 # direction -> the send-keys -X copy-mode command it maps to.
 _SCROLL = {
     "up": "scroll-up",
@@ -31,8 +33,10 @@ async def _require_X(runner, target: str | None) -> None:
         )
 
 
-def register(mcp, runner) -> None:
-    @mcp.tool()
+def register(mcp, runner, enabled) -> None:
+    tool = toolset_gate(mcp, enabled)
+
+    @tool()
     async def tmux_copy_mode(
         target_pane: str,
         page_up: bool = False,
@@ -58,7 +62,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked(args, target=target)
         return {"copy_mode": True, "pane": target_pane}
 
-    @mcp.tool()
+    @tool()
     async def tmux_copy_scroll(
         target_pane: str,
         direction: str = "up",
@@ -81,7 +85,7 @@ def register(mcp, runner) -> None:
             await runner.run_checked(["send-keys", "-X", "-t", target_pane, cmd], target=target)
         return {"scrolled": direction, "amount": reps, "pane": target_pane}
 
-    @mcp.tool()
+    @tool()
     async def tmux_copy_search(
         target_pane: str,
         pattern: str,

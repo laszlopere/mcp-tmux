@@ -7,9 +7,13 @@ require tmux 2.2+.
 
 from __future__ import annotations
 
+from ._util import toolset_gate
 
-def register(mcp, runner) -> None:
-    @mcp.tool()
+
+def register(mcp, runner, enabled) -> None:
+    tool = toolset_gate(mcp, enabled)
+
+    @tool()
     async def tmux_set_hook(
         hook: str,
         command: str | None = None,
@@ -37,7 +41,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked(args, target=target)
         return {"hook": hook, "unset": unset}
 
-    @mcp.tool()
+    @tool()
     async def tmux_show_hooks(
         global_: bool = False,
         target_entity: str | None = None,
@@ -58,7 +62,7 @@ def register(mcp, runner) -> None:
             hooks[key] = val.strip()
         return {"hooks": hooks}
 
-    @mcp.tool()
+    @tool()
     async def tmux_run_shell(
         command: str,
         background: bool = False,
@@ -81,7 +85,7 @@ def register(mcp, runner) -> None:
         result = await runner.run(args, target=target)
         return {"output": result.stdout, "exit_code": result.exit_code}
 
-    @mcp.tool()
+    @tool()
     async def tmux_if_shell(
         condition: str,
         if_command: str,

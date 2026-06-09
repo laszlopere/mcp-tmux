@@ -8,9 +8,13 @@ spawned in the session's panes/windows.
 
 from __future__ import annotations
 
+from ._util import toolset_gate
 
-def register(mcp, runner) -> None:
-    @mcp.tool()
+
+def register(mcp, runner, enabled) -> None:
+    tool = toolset_gate(mcp, enabled)
+
+    @tool()
     async def tmux_set_environment(
         name: str,
         value: str | None = None,
@@ -54,7 +58,7 @@ def register(mcp, runner) -> None:
             return {"removed": name, "global": global_}
         return {"set": name, "value": value, "global": global_}
 
-    @mcp.tool()
+    @tool()
     async def tmux_show_environment(
         name: str | None = None,
         global_: bool = False,

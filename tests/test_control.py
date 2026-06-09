@@ -179,7 +179,11 @@ async def test_close_suppresses_reconnect():
 
 pytestmark_e2e = pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux not installed")
 
-CONFIG = {"defaults": {"socket_name": "mcp-tmux-cm", "timeout": 10}, "targets": {}}
+CONFIG = {
+    "defaults": {"socket_name": "mcp-tmux-cm", "timeout": 10},
+    "targets": {},
+    "toolsets": ["all"],
+}
 
 
 def _tool_json(res):

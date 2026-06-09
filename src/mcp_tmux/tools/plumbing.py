@@ -8,10 +8,13 @@ window by name, and streaming a pane's output to a command.
 from __future__ import annotations
 
 from ..formats import FIELD_SEP, WINDOW_FIELDS, parse_records
+from ._util import toolset_gate
 
 
-def register(mcp, runner) -> None:
-    @mcp.tool()
+def register(mcp, runner, enabled) -> None:
+    tool = toolset_gate(mcp, enabled)
+
+    @tool()
     async def tmux_link_window(
         src: str, dst: str, select: bool = True, target: str | None = None
     ) -> dict:
@@ -28,7 +31,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked(args, target=target)
         return {"linked": True, "src": src, "dst": dst}
 
-    @mcp.tool()
+    @tool()
     async def tmux_unlink_window(window: str, target: str | None = None) -> dict:
         """Unlink a window (remove one of its links).
 
@@ -39,7 +42,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked(["unlink-window", "-t", window], target=target)
         return {"unlinked": True, "window": window}
 
-    @mcp.tool()
+    @tool()
     async def tmux_break_pane(
         target_pane: str,
         window_name: str | None = None,
@@ -65,7 +68,7 @@ def register(mcp, runner) -> None:
         rec = parse_records(out, ["id", "index", "name"])
         return rec[0] if rec else {}
 
-    @mcp.tool()
+    @tool()
     async def tmux_join_pane(
         src: str,
         dst: str,
@@ -89,7 +92,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked(args, target=target)
         return {"joined": True, "src": src, "dst": dst}
 
-    @mcp.tool()
+    @tool()
     async def tmux_find_window(
         pattern: str,
         session: str | None = None,
@@ -119,7 +122,7 @@ def register(mcp, runner) -> None:
         ]
         return {"matches": matches}
 
-    @mcp.tool()
+    @tool()
     async def tmux_pipe_pane(
         target_pane: str,
         command: str | None = None,

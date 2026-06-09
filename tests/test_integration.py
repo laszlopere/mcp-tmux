@@ -15,7 +15,11 @@ from mcp_tmux.runner import TmuxRunner
 pytestmark = pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux not installed")
 
 # Route every command to an isolated server via a default socket name.
-CONFIG = {"defaults": {"socket_name": "mcp-tmux-test", "timeout": 10}, "targets": {}}
+CONFIG = {
+    "defaults": {"socket_name": "mcp-tmux-test", "timeout": 10},
+    "targets": {},
+    "toolsets": ["all"],
+}
 
 
 @pytest.fixture()

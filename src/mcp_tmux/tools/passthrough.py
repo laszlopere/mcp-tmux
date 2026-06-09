@@ -8,10 +8,13 @@ introspection.
 from __future__ import annotations
 
 from ..targets import list_target_names
+from ._util import toolset_gate
 
 
-def register(mcp, runner) -> None:
-    @mcp.tool()
+def register(mcp, runner, enabled) -> None:
+    tool = toolset_gate(mcp, enabled)
+
+    @tool()
     async def tmux_command(
         args: list[str],
         target: str | None = None,
@@ -38,7 +41,7 @@ def register(mcp, runner) -> None:
             "exit_code": result.exit_code,
         }
 
-    @mcp.tool()
+    @tool()
     async def tmux_query(
         format: str,
         target_pane: str | None = None,
@@ -57,7 +60,7 @@ def register(mcp, runner) -> None:
         out = await runner.run_checked(args, target=target)
         return {"value": out.rstrip("\n")}
 
-    @mcp.tool()
+    @tool()
     async def tmux_version(target: str | None = None) -> dict:
         """Report the target's tmux version and whether it is supported (1.8+)."""
         caps = await runner.capabilities(target)
@@ -67,7 +70,7 @@ def register(mcp, runner) -> None:
             "supported": caps.supported,
         }
 
-    @mcp.tool()
+    @tool()
     async def tmux_list_targets() -> dict:
         """List configured targets: 'local' plus any named profiles from config."""
         return {"targets": list_target_names(runner.config)}

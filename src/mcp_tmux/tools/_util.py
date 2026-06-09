@@ -44,6 +44,28 @@ DESTRUCTIVE = {
 }
 
 
+def toolset_gate(mcp, enabled):
+    """Return a drop-in replacement for ``mcp.tool()`` that gates by toolset.
+
+    Each module registers its tools through ``tool = toolset_gate(mcp, enabled)``
+    and ``@tool()`` instead of ``@mcp.tool()``. The decorator registers the
+    function as a tool only when its ``__name__`` is in the active ``enabled``
+    set; otherwise it leaves the function untouched and unregistered. This keeps
+    gating localized to a one-line change per module while supporting modules
+    whose tools span several toolsets.
+    """
+
+    def gate(*args, **kwargs):
+        def deco(fn):
+            if fn.__name__ in enabled:
+                return mcp.tool(*args, **kwargs)(fn)
+            return fn
+
+        return deco
+
+    return gate
+
+
 def require_kind(kind: str, allowed) -> str:
     """Validate a `kind` discriminator against an allow-list.
 

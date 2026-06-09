@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from ..formats import FIELD_SEP, PANE_FIELDS, parse_records
+from ._util import toolset_gate
 
 
-def register(mcp, runner) -> None:
-    @mcp.tool()
+def register(mcp, runner, enabled) -> None:
+    tool = toolset_gate(mcp, enabled)
+
+    @tool()
     async def tmux_list_panes(
         window: str | None = None,
         session: str | None = None,
@@ -24,7 +27,7 @@ def register(mcp, runner) -> None:
         records = await runner.list_records(cmd, PANE_FIELDS, target=target)
         return {"panes": records}
 
-    @mcp.tool()
+    @tool()
     async def tmux_split_window(
         target_pane: str | None = None,
         vertical: bool = False,
@@ -58,7 +61,7 @@ def register(mcp, runner) -> None:
         rec = parse_records(out, ["id", "index"])
         return rec[0] if rec else {}
 
-    @mcp.tool()
+    @tool()
     async def tmux_set_pane_title(
         title: str, target_pane: str | None = None, target: str | None = None
     ) -> dict:
@@ -81,7 +84,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked(args, target=target)
         return {"pane": target_pane, "title": title}
 
-    @mcp.tool()
+    @tool()
     async def tmux_resize_pane(
         target_pane: str,
         left: int | None = None,
@@ -103,7 +106,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked(args, target=target)
         return {"resized": target_pane}
 
-    @mcp.tool()
+    @tool()
     async def tmux_clear_history(target_pane: str | None = None, target: str | None = None) -> dict:
         """Wipe a pane's scrollback history (clear-history -t pane).
 
@@ -120,7 +123,7 @@ def register(mcp, runner) -> None:
         await runner.run_checked(args, target=target)
         return {"cleared": True, "pane": target_pane}
 
-    @mcp.tool()
+    @tool()
     async def tmux_select_layout(
         layout: str, window: str | None = None, target: str | None = None
     ) -> dict:

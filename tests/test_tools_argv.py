@@ -22,6 +22,7 @@ from mcp_tmux.capabilities import Capabilities
 from mcp_tmux.formats import FIELD_SEP as SEP
 from mcp_tmux.runner import TmuxResult
 from mcp_tmux.tools import register_all
+from mcp_tmux.toolsets import resolve_enabled
 
 
 class FakeRunner:
@@ -83,7 +84,7 @@ class FakeRunner:
 def _tools(fr: FakeRunner) -> dict:
     """Register all tools against a fake runner; return name -> wrapped fn."""
     mcp = FastMCP("tmux")
-    register_all(mcp, fr)
+    register_all(mcp, fr, resolve_enabled(["all"]))
     return {t.name: t.fn for t in mcp._tool_manager.list_tools()}
 
 
