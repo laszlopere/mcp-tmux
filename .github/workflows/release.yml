@@ -1,0 +1,45 @@
+name: Release
+
+# Publishes to PyPI via Trusted Publishing (OIDC) on a version tag, e.g. v0.2.0.
+# No API tokens are stored: PyPI verifies the GitHub OIDC identity instead.
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: Check distributions
+        run: uvx twine check dist/*
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    # The trusted publisher on PyPI is bound to this environment name.
+    environment: pypi
+    permissions:
+      id-token: write # required for OIDC
+    steps:
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
