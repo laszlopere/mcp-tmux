@@ -51,7 +51,14 @@ def register(mcp, runner, enabled) -> None:
           ["C-c"], ["Escape"], ["Up", "Up", "Enter"].
 
         `enter=True` appends an Enter keypress after the input — the usual way to
-        "run" a typed command. Returns {"sent": True}.
+        "run" a typed command.
+
+        This is fire-and-forget: it sends input but does not wait or read back.
+        To run a command and collect its output + exit code, prefer `tmux_run`;
+        to send input and then wait for a specific result, pair it with
+        `tmux_wait_for_text`.
+
+        Returns {"sent": True}.
         """
         if (text is None) == (keys is None):
             raise ValueError("Provide exactly one of 'text' or 'keys'.")
@@ -106,6 +113,10 @@ def register(mcp, runner, enabled) -> None:
         color/escape sequences (-e). `join=True` rejoins wrapped lines (-J).
         `trim=True` (default) drops the empty padding lines tmux emits below the
         last line of real content; set trim=False to keep the raw capture.
+
+        This is a point-in-time snapshot. To wait for output to appear or settle
+        first, use `tmux_wait_for_text` / `tmux_wait_for_idle`; to follow a pane
+        live as it writes, use `tmux_stream_read`.
 
         Returns {"content": <captured text>}.
         """

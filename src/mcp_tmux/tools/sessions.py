@@ -19,7 +19,11 @@ def register(mcp, runner, enabled) -> None:
         session: Annotated[str, Field(description="Session name or id to check for.")],
         target: Target = None,
     ) -> dict:
-        """Check whether a session exists. Returns {"exists": bool}."""
+        """Check whether a session exists. Returns {"exists": bool}.
+
+        To enumerate sessions use `tmux_list(kind="session")`; to create one only
+        if it is missing, use `tmux_new_session(attach_or_create=True)` directly.
+        """
         result = await runner.run(["has-session", "-t", session], target=target)
         return {"exists": result.ok}
 
@@ -71,6 +75,10 @@ def register(mcp, runner, enabled) -> None:
         options below only apply when the session is actually created).
         `env` (-e KEY=VAL, tmux 3.0+) sets session environment variables before
         the first command launches; ignored with a note on older tmux.
+
+        Use this to start a new top-level session; to add a window to an existing
+        session use `tmux_new_window`, or `tmux_split_window` for another pane.
+
         Returns the created (or existing) session's {"id", "name"}.
         """
         if attach_or_create and name:

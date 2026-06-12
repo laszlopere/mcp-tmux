@@ -40,8 +40,13 @@ def register(mcp, runner, enabled) -> None:
     ) -> dict:
         """Create a window. `session` is the target session (or "sess:index").
 
-        Set select=False to create it in the background (-d). Returns the new
-        window's {"id", "index", "name"}.
+        Set select=False to create it in the background (-d).
+
+        Use this to add a window to an existing session; for a whole new session
+        use `tmux_new_session`, or `tmux_split_window` to add a pane to the
+        current window instead.
+
+        Returns the new window's {"id", "index", "name"}.
         """
         args = ["new-window"]
         if not select:
@@ -74,6 +79,10 @@ def register(mcp, runner, enabled) -> None:
         """Rotate a window to its next preset layout (next-layout).
 
         With `window` (-t), acts on that window; otherwise the current one.
+
+        This just cycles to the next preset; to apply a specific layout by name,
+        use `tmux_select_layout`.
+
         Returns {"window": window}.
         """
         args = ["next-layout"]
@@ -88,6 +97,11 @@ def register(mcp, runner, enabled) -> None:
         dst: Annotated[str, Field(description='Destination session:index (e.g. "sess:2").')],
         target: Target = None,
     ) -> dict:
-        """Move/renumber a window from `src` to `dst` (e.g. "sess:5")."""
+        """Move/renumber a window from `src` to `dst` (e.g. "sess:5").
+
+        Use this to relocate one window to a (possibly empty) index; to exchange
+        two existing windows use `tmux_swap(kind="window")`, or `tmux_link_window`
+        to make one window appear in two places at once.
+        """
         await runner.run_checked(["move-window", "-s", src, "-t", dst], target=target)
         return {"moved": True, "src": src, "dst": dst}

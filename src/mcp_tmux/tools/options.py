@@ -32,6 +32,8 @@ def register(mcp, runner, enabled) -> None:
         `scope` is one of "server" (-s), "session" (default), "window" (-w),
         or "pane" (-p, requires newer tmux). `target_entity` is the -t target
         for session/window/pane scope.
+
+        Read current values back with `tmux_show_options`.
         """
         args = ["set-option"]
         flag = {"server": "-s", "session": None, "window": "-w", "pane": "-p"}.get(scope)
@@ -61,7 +63,10 @@ def register(mcp, runner, enabled) -> None:
         ] = False,
         target: Target = None,
     ) -> dict:
-        """Show tmux options for a scope. Returns {"options": {name: value}}."""
+        """Show tmux options for a scope.
+
+        The read counterpart to `tmux_set_option`. Returns {"options": {name: value}}.
+        """
         args = ["show-options"]
         flag = {"server": "-s", "session": None, "window": "-w", "pane": "-p"}.get(scope)
         if scope not in ("server", "session", "window", "pane"):
@@ -90,7 +95,11 @@ def register(mcp, runner, enabled) -> None:
         ] = None,
         target: Target = None,
     ) -> dict:
-        """Set a paste buffer's contents (optionally named with -b)."""
+        """Set a paste buffer's contents from a string (optionally named with -b).
+
+        To fill a buffer from a file use `tmux_load_buffer`; once set, drop it
+        into a pane with `tmux_paste_buffer`.
+        """
         args = ["set-buffer"]
         if name:
             args += ["-b", name]
@@ -111,7 +120,12 @@ def register(mcp, runner, enabled) -> None:
         ] = False,
         target: Target = None,
     ) -> dict:
-        """Paste a buffer into a pane. delete=True removes the buffer after (-d)."""
+        """Paste a buffer into a pane. delete=True removes the buffer after (-d).
+
+        Fill the buffer first with `tmux_set_buffer` (from a string) or
+        `tmux_load_buffer` (from a file). Note this inserts text as if typed; to
+        send keystrokes/control keys use `tmux_send_keys`.
+        """
         args = ["paste-buffer", "-t", target_pane]
         if name:
             args += ["-b", name]
@@ -125,7 +139,10 @@ def register(mcp, runner, enabled) -> None:
         name: Annotated[str, Field(description="Name of the paste buffer to delete.")],
         target: Target = None,
     ) -> dict:
-        """Delete a named paste buffer."""
+        """Delete a named paste buffer.
+
+        List existing buffers with `tmux_list(kind="buffer")`.
+        """
         await runner.run_checked(["delete-buffer", "-b", name], target=target)
         return {"deleted": name}
 
@@ -151,6 +168,8 @@ def register(mcp, runner, enabled) -> None:
         `append=True` appends to the file instead of overwriting (-a). IMPORTANT:
         `path` is resolved on the **target** — for an SSH target it is a file on
         the remote host, not the local machine.
+
+        The inverse of `tmux_load_buffer`.
 
         Returns {"saved": path, "name": name}.
         """
@@ -180,6 +199,9 @@ def register(mcp, runner, enabled) -> None:
         `name` stores it under a named buffer (-b). IMPORTANT: `path` is resolved
         on the **target** — for an SSH target it is a file on the remote host,
         not the local machine.
+
+        To load from a string instead of a file use `tmux_set_buffer`; the
+        inverse (buffer to file) is `tmux_save_buffer`.
 
         Returns {"loaded": path, "name": name}.
         """

@@ -143,6 +143,9 @@ def register(mcp, runner, enabled) -> None:
         `kind` is "session" or "window"; `id` is the entity to rename. Maps to
         `rename-<kind> -t id new_name`.
 
+        To label a pane (rather than rename its window), use
+        `tmux_set_pane_title` instead.
+
         Returns {"renamed": True, "kind": kind, "name": new_name}.
         """
         require_kind(kind, {"session", "window"})
@@ -202,6 +205,9 @@ def register(mcp, runner, enabled) -> None:
         `kind` is "window" (last-window) or "pane" (last-pane). `scope` is the
         optional `-t` context: a session for `kind="window"`, a window for
         `kind="pane"`; omit to act on the current one.
+
+        This is the counterpart to `tmux_select` — use that to activate a
+        specific entity by id, this to toggle back to the previous one.
 
         Returns {"selected": "last", "kind": kind}.
         """
@@ -292,6 +298,10 @@ def register(mcp, runner, enabled) -> None:
         force-restart a live one. `command` defaults to the original command;
         `start_directory` sets its cwd (-c). `env` (-e KEY=VAL, tmux 3.0+) injects
         environment variables; ignored with a note on older tmux.
+
+        Unlike `tmux_kill` (which destroys the entity), this reuses it in place,
+        preserving its id and position; to run a one-off command and collect its
+        output instead, use `tmux_run`.
 
         Returns {"respawned": True, "kind": kind, "id": id} (plus "notes" if env
         was dropped).

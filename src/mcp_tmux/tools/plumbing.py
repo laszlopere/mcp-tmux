@@ -75,7 +75,12 @@ def register(mcp, runner, enabled) -> None:
         """Break a pane out into a new window of its own.
 
         `window_name` names the new window; select=False creates it in the
-        background (-d). Returns the new window's {"id", "index", "name"}.
+        background (-d).
+
+        The inverse of `tmux_join_pane` (which folds a pane back into another
+        window's layout).
+
+        Returns the new window's {"id", "index", "name"}.
         """
         args = ["break-pane", "-s", target_pane]
         if not select:
@@ -178,7 +183,13 @@ def register(mcp, runner, enabled) -> None:
         With `command`, tmux feeds everything the pane prints to that command's
         stdin, e.g. command="cat >> /tmp/pane.log". only_new=True (-o) toggles:
         if a pipe is already open it is closed, otherwise opened. Call with no
-        `command` to stop piping. Returns {"piping": bool}.
+        `command` to stop piping.
+
+        Best for continuously logging a pane to a file/command. To follow output
+        live in-process use `tmux_stream_read`; for a one-shot snapshot use
+        `tmux_capture_pane`.
+
+        Returns {"piping": bool}.
         """
         args = ["pipe-pane"]
         if only_new:

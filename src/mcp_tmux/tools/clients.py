@@ -18,6 +18,9 @@ def register(mcp, runner, enabled) -> None:
     async def tmux_server_info(target: Target = None) -> dict:
         """Report basic server facts: pid, socket path, and tmux version.
 
+        For just the version (and whether it is supported), `tmux_version` is the
+        lighter call; `tmux_list_targets` enumerates configurable targets.
+
         Returns {"pid", "socket_path", "version", "supported"}.
         """
         caps = await runner.capabilities(target)

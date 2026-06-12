@@ -35,7 +35,9 @@ def register(mcp, runner, enabled) -> None:
     ) -> dict:
         """List key bindings, optionally restricted to one key `table` (e.g.
         "prefix", "root", "copy-mode"). Returns the raw bindings as
-        {"keys": <text>, "lines": [...]} — one `bind-key ...` line each."""
+        {"keys": <text>, "lines": [...]} — one `bind-key ...` line each.
+
+        The read counterpart to `tmux_bind_key` / `tmux_unbind_key`."""
         args = ["list-keys", *await _table_flag(runner, table, target)]
         out = await runner.run_checked(args, target=target)
         lines = [ln for ln in out.splitlines() if ln.strip()]
@@ -67,7 +69,12 @@ def register(mcp, runner, enabled) -> None:
         `command` is the tmux command + args as a list, e.g.
         ["new-window", "-n", "logs"]. `table` selects the key table; root=True
         (-n) binds in the root table so no prefix is needed; repeat=True (-r)
-        allows the key to repeat. Returns {"bound": key}.
+        allows the key to repeat.
+
+        Inspect existing bindings with `tmux_list_keys`; remove one with
+        `tmux_unbind_key`.
+
+        Returns {"bound": key}.
         """
         if not command:
             raise ValueError("command must be a non-empty list of tmux command args")
@@ -102,8 +109,10 @@ def register(mcp, runner, enabled) -> None:
         target: Target = None,
     ) -> dict:
         """Unbind a key. Provide `key`, or all=True (-a) to clear every binding
-        (in `table` if given). root=True (-n) targets the root table. Returns
-        {"unbound": ...}."""
+        (in `table` if given). root=True (-n) targets the root table.
+
+        The inverse of `tmux_bind_key`; see current bindings with
+        `tmux_list_keys`. Returns {"unbound": ...}."""
         args = ["unbind-key"]
         if all:
             args.append("-a")

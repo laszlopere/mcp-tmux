@@ -100,6 +100,8 @@ def register(mcp, runner, enabled) -> None:
         removal (shown by tmux as `-NAME`) are reported as removed=True with a
         null value.
 
+        This is the read counterpart to `tmux_set_environment`.
+
         Returns {"environment": {name: value_or_None}, "removed": [names...]}.
         """
         args = ["show-environment"]

@@ -491,8 +491,17 @@ below — critiques only, no fixes yet.
       reused across the surface, plus inline Field descriptions for tool-specific
       params. Coverage is now 100% (236/236 params across all 60 tools); ruff + mypy
       clean, 187 tests pass.
-[ ] 8.7. **No "when to use this vs. alternatives" guidance** — systematically
-      absent across the low scorers.
-[ ] 8.8. **Low scorers cluster in the layout toolset** (window/pane
+[x] 8.7. **No "when to use this vs. alternatives" guidance** — systematically
+      absent across the low scorers. → DONE: systematic pass adding a concise
+      when-to-use / vs-alternatives line to every tool with a meaningful sibling —
+      read/write counterparts (show_* ↔ set_*, list_keys ↔ bind/unbind), inverses
+      (break ↔ join, save ↔ load buffer), and mode contrasts (send_keys vs run,
+      capture vs wait_* vs stream_read, split vs new_window vs join, move vs swap vs
+      link, query vs display_message, version vs server_info). ruff + mypy clean,
+      187 tests pass.
+[x] 8.8. **Low scorers cluster in the layout toolset** (window/pane
       swap/select/resize/kill) — the curated core tools (capture, send-keys, wait
       helpers) are richly documented and are what earned the coherence A.
+      → RESOLVED by 8.1–8.7: the layout/plumbing tools now match the core tools'
+      documentation depth (behavioral disclosure + 100% param schema coverage +
+      when-to-use guidance). Observation item, no separate code change.

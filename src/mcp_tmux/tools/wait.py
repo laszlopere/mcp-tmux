@@ -131,7 +131,13 @@ def register(mcp, runner, enabled) -> None:
         """Wait until a pane's visible content stops changing.
 
         Returns once the capture is unchanged for `idle_seconds` (i.e. output
-        has settled), or after `timeout`. Returns {"idle", "elapsed", "content"}.
+        has settled), or after `timeout`.
+
+        Use this when you don't know the exact completion text; if you do, wait
+        on it with `tmux_wait_for_text`, and to run a command and get just its
+        output + exit code, use `tmux_run`.
+
+        Returns {"idle", "elapsed", "content"}.
         """
         t0 = time.monotonic()
         deadline = t0 + timeout

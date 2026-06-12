@@ -65,6 +65,10 @@ def register(mcp, runner, enabled) -> None:
 
         Uses `display-message -p` to expand any #{...} format variable. Optional
         `target_pane` sets the context (-t) the format is evaluated against.
+
+        This returns the expanded value to you; to instead show a message on a
+        client's status line, use `tmux_display_message`.
+
         Returns {"value": <expanded string>}.
         """
         args = ["display-message", "-p"]
@@ -76,7 +80,10 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_version(target: Target = None) -> dict:
-        """Report the target's tmux version and whether it is supported (1.8+)."""
+        """Report the target's tmux version and whether it is supported (1.8+).
+
+        For more server facts (pid, socket path) use `tmux_server_info`.
+        """
         caps = await runner.capabilities(target)
         return {
             "raw": caps.raw,
@@ -86,5 +93,9 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_list_targets() -> dict:
-        """List configured targets: 'local' plus any named profiles from config."""
+        """List configured targets: 'local' plus any named profiles from config.
+
+        Pass one of these names as the `target` argument of any other tool to run
+        it against that host.
+        """
         return {"targets": list_target_names(runner.config)}

@@ -27,7 +27,11 @@ def register(mcp, runner, enabled) -> None:
         target: Target = None,
     ) -> dict:
         """List panes. Scope to a `window` (-t), a `session` (-s), or the whole
-        server (default, -a)."""
+        server (default, -a).
+
+        For sessions/windows/clients/buffers use `tmux_list(kind=...)`; panes
+        live here because they have two independent scope axes (window vs
+        session)."""
         cmd = ["list-panes"]
         if window:
             cmd += ["-t", window]
@@ -69,6 +73,10 @@ def register(mcp, runner, enabled) -> None:
         top/bottom. `percentage` sizes the new pane (e.g. 30). select=False
         keeps focus on the original pane (-d).
 
+        Use this to add a pane to the current window; use `tmux_new_window` for
+        a fresh window instead, or `tmux_join_pane` to move an existing pane in
+        as the split rather than spawning a new one.
+
         Returns the new pane's {"id", "index"}.
         """
         # tmux convention: -h = horizontal split = side-by-side (left/right);
@@ -104,6 +112,8 @@ def register(mcp, runner, enabled) -> None:
         handy label for agents driving several panes (it does not change the
         window name). Requires tmux 2.6+; on older tmux it is a no-op with a
         note.
+
+        To rename the window or session itself, use `tmux_rename` instead.
 
         Returns {"pane": target_pane, "title": title} (or {"notes": [...]}).
         """
@@ -208,7 +218,10 @@ def register(mcp, runner, enabled) -> None:
         target: Target = None,
     ) -> dict:
         """Apply a named layout (even-horizontal, even-vertical, main-horizontal,
-        main-vertical, tiled) or a layout string to a window."""
+        main-vertical, tiled) or a layout string to a window.
+
+        Use this to rearrange all panes at once; `tmux_next_layout` just cycles
+        to the next preset, and `tmux_resize_pane` nudges a single border."""
         args = ["select-layout"]
         if window:
             args += ["-t", window]

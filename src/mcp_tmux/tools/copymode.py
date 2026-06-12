@@ -58,6 +58,10 @@ def register(mcp, runner, enabled) -> None:
 
         page_up=True (-u) scrolls up one page on entry. exit=True leaves copy
         mode instead (sends the copy-mode `cancel` command, tmux 2.4+).
+
+        If you only need to read scrolled-back text, `tmux_capture_pane` with a
+        `start` line range is simpler than entering copy mode.
+
         Returns {"copy_mode": bool}.
         """
         if exit:
@@ -121,7 +125,13 @@ def register(mcp, runner, enabled) -> None:
 
         backward=True searches towards the top of history (the usual direction
         for finding recent output); set backward=False to search forward. Enters
-        copy mode first if needed. Requires tmux 2.4+. Returns {"searched": ...}.
+        copy mode first if needed. Requires tmux 2.4+.
+
+        This positions the copy-mode cursor on a match for an interactive client;
+        to programmatically test whether text is present, `tmux_wait_for_text`
+        (or `tmux_capture_pane` + your own match) is usually what you want.
+
+        Returns {"searched": ...}.
         """
         await _require_X(runner, target)
         await runner.run_checked(["copy-mode", "-t", target_pane], target=target)

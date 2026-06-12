@@ -47,6 +47,10 @@ def register(mcp, runner, enabled) -> None:
         (target, session). Returns {"stream_id", "session", "target", "alive"};
         pass the stream_id to `tmux_stream_read`/`_send`/`_stop`.
 
+        Use this to follow a pane live (a build, a tail, a long job); for a
+        one-shot read `tmux_capture_pane` is simpler, and to block until specific
+        text appears use `tmux_wait_for_text`.
+
         Pass `width`/`height` (both, tmux 2.4+) to set the control client's size
         via `refresh-client -C WxH` right after attach — otherwise it defaults to
         80x24 and wraps `%output` for wider panes oddly. The size is re-applied

@@ -44,6 +44,9 @@ def register(mcp, runner, enabled) -> None:
         `command` is the tmux command to run (a command string like
         'display "gone"'). global_=True (-g) sets it server-wide; unset=True
         (-u) removes the hook instead. Requires tmux 2.2+.
+
+        Inspect what is currently set with `tmux_show_hooks`. For one-off
+        conditional logic (not event-triggered) use `tmux_if_shell` instead.
         """
         args = ["set-hook"]
         if global_:
@@ -70,7 +73,10 @@ def register(mcp, runner, enabled) -> None:
         ] = None,
         target: Target = None,
     ) -> dict:
-        """Show the hooks set on the server/session. Returns {"hooks": {name: command}}."""
+        """Show the hooks set on the server/session.
+
+        The read counterpart to `tmux_set_hook`. Returns {"hooks": {name: command}}.
+        """
         args = ["show-hooks"]
         if global_:
             args.append("-g")
@@ -141,6 +147,10 @@ def register(mcp, runner, enabled) -> None:
         command `if_command`, otherwise `else_command` (if given). is_format=True
         (-F) treats `condition` as a tmux format that is true unless it evaluates
         to empty or "0" (no shell). background=True (-b) runs in the background.
+
+        For an unconditional shell command use `tmux_run_shell`; to run a command
+        and capture its output + exit code use `tmux_run`. To fire a command on a
+        tmux event rather than on demand, use `tmux_set_hook`.
         """
         args = ["if-shell"]
         if background:
