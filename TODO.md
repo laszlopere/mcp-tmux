@@ -461,17 +461,24 @@ below — critiques only, no fixes yet.
       with behavioral disclosure (positions swap, contents travel, geometry
       preserved), per-parameter docs incl. target syntax, and when-to-use guidance
       vs `tmux_move_window` / `tmux_select_layout`.
-[ ] 8.2. **`tmux_kill_pane` — 2.2/5.** Single-sentence description; lacks essential
+[x] 8.2. **`tmux_kill_pane` — 2.2/5.** Single-sentence description; lacks essential
       context about its parameters (`target_pane`, `target`) and under-documents
-      the destructive behavior beyond the annotation.
-[ ] 8.3. **`tmux_select_pane` — 2.3/5.** Two inputs, both undocumented; no
-      behavioral context and no usage scenarios.
-[ ] 8.4. **`tmux_resize_pane` — 2.4/5.** Six parameters (only one required), yet the
+      the destructive behavior beyond the annotation. → DONE: enriched the merged
+      `tmux_kill` docstring (no-confirm/SIGHUP irreversibility, last-pane/last-window
+      cascade, `id`/`target` params, pointer to `tmux_respawn`).
+[x] 8.3. **`tmux_select_pane` — 2.3/5.** Two inputs, both undocumented; no
+      behavioral context and no usage scenarios. → DONE: `tmux_select` docstring now
+      explains focus-only semantics (selecting a pane selects its window; not needed
+      before targeting by id), documents `id`/`target`, points to `tmux_last`.
+[x] 8.4. **`tmux_resize_pane` — 2.4/5.** Six parameters (only one required), yet the
       description doesn't clarify how the parameters interact or explain the
-      directional-resizing mechanics.
-[ ] 8.5. **`tmux_swap_pane` — 2.4/5.** No explanation of what "swap" means in
+      directional-resizing mechanics. → DONE: docstring now explains per-direction
+      cell pushes, adjacent-pane shrink, combining directions, absolute-cell clamping,
+      `target_pane`/`target`, and `tmux_select_layout` as the bulk alternative.
+[x] 8.5. **`tmux_swap_pane` — 2.4/5.** No explanation of what "swap" means in
       practice or of the parameter semantics (`src`, `dst`, `target` left
-      undefined).
+      undefined). → DONE in 8.1: pane swap is the `kind="pane"` half of the merged
+      `tmux_swap`, whose rewritten docstring covers swap semantics and `src`/`dst`/`target`.
 
 ### Cross-cutting patterns
 

@@ -66,10 +66,21 @@ def register(mcp, runner, enabled) -> None:
     async def tmux_kill(kind: str, id: str | None = None, target: str | None = None) -> dict:
         """Kill a session, window, pane, or the whole server (destructive).
 
+        Irreversible and immediate: tmux does not prompt for confirmation, and
+        any program running in the killed entity is terminated (SIGHUP) along
+        with its unsaved state and scrollback. Killing the last pane in a window
+        closes the window; killing the last window in a session ends the session.
+
         `kind` selects what to kill: "session" / "window" / "pane" / "server".
-        `id` is the target entity (e.g. session name, "sess:2", "%3") and is
-        required for every kind except "server" (which ends ALL sessions and
-        takes no id). Maps to `kill-<kind> [-t id]`.
+        `id` is the target entity (e.g. session name "work", a window "sess:2",
+        a pane "%3" or "sess:2.1") and is required for every kind except
+        "server" — which ends ALL sessions on the host and takes no id.
+        `target` — optional host/profile to run against (omit for local).
+
+        Maps to `kill-<kind> [-t id]`.
+
+        To restart a crashed command in place without destroying the pane/window
+        and its layout, prefer `tmux_respawn`.
 
         Returns {"killed": True, "kind": kind, "id": id}.
         """
@@ -97,10 +108,21 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_select(kind: str, id: str, target: str | None = None) -> dict:
-        """Make a window or pane the active one.
+        """Make a window or pane the active (focused) one.
+
+        Moves the selection so that subsequent interactive input and any attached
+        client's view go to this entity; selecting a pane also selects its window.
+        This only changes focus — it does not alter contents or layout, and it is
+        not required before targeting an entity by id elsewhere (e.g.
+        `tmux_send_keys` and `tmux_capture_pane` address a pane directly,
+        regardless of which one is active).
 
         `kind` is "window" or "pane"; `id` is the entity to activate (e.g.
-        "mysess:2" for a window, "%3" for a pane). Maps to `select-<kind> -t id`.
+        "mysess:2" for a window, "%3" or "mysess:2.1" for a pane).
+        `target` — optional host/profile to run against (omit for local).
+
+        Maps to `select-<kind> -t id`. To jump back to the previously selected
+        one, use `tmux_last`.
 
         Returns {"selected": id, "kind": kind}.
         """

@@ -93,7 +93,26 @@ def register(mcp, runner, enabled) -> None:
         down: int | None = None,
         target: str | None = None,
     ) -> dict:
-        """Resize a pane by a number of cells in one or more directions."""
+        """Grow or shrink a pane by a number of cells, per direction.
+
+        Each of `left` / `right` / `up` / `down` pushes the corresponding border
+        outward by that many cells, enlarging the pane on that side; the adjacent
+        pane shrinks to make room. Omit a direction (or pass 0) to leave that
+        border alone. Multiple directions combine in one call — e.g. right=5 with
+        down=3 widens and heightens at once. Sizes are absolute cell counts, not
+        percentages, and tmux clamps them to what the layout and window size
+        allow, so the resulting size may be smaller than requested.
+
+        `target_pane` — the pane to resize (e.g. "%3" or "dev:1.2"); required.
+        `target` — optional host/profile to run against (omit for local).
+
+        Maps to `resize-pane -t pane [-L left] [-R right] [-U up] [-D down]`.
+
+        For wholesale geometry changes across a window, applying a named layout
+        via `tmux_select_layout` is usually easier than nudging borders here.
+
+        Returns {"resized": target_pane}.
+        """
         args = ["resize-pane", "-t", target_pane]
         if left:
             args += ["-L", str(left)]
