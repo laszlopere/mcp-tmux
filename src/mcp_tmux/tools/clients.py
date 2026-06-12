@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
+from pydantic import Field
+
 from ..formats import FIELD_SEP
+from ._params import Target, TargetPaneOpt
 from ._util import toolset_gate
 
 
@@ -10,7 +15,7 @@ def register(mcp, runner, enabled) -> None:
     tool = toolset_gate(mcp, enabled)
 
     @tool()
-    async def tmux_server_info(target: str | None = None) -> dict:
+    async def tmux_server_info(target: Target = None) -> dict:
         """Report basic server facts: pid, socket path, and tmux version.
 
         Returns {"pid", "socket_path", "version", "supported"}.
@@ -34,10 +39,16 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_display_message(
-        message: str,
-        target_client: str | None = None,
-        target_pane: str | None = None,
-        target: str | None = None,
+        message: Annotated[
+            str,
+            Field(description="Text to show; #{...} formats expand against target_pane."),
+        ],
+        target_client: Annotated[
+            str | None,
+            Field(description="Client to show the message on (-c)."),
+        ] = None,
+        target_pane: TargetPaneOpt = None,
+        target: Target = None,
     ) -> dict:
         """Show a message on a client's status line.
 

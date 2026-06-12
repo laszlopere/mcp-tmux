@@ -482,9 +482,15 @@ below — critiques only, no fixes yet.
 
 ### Cross-cutting patterns
 
-[ ] 8.6. **Schema coverage is 0%** (flagged repeatedly): `inputSchema` parameters
+[x] 8.6. **Schema coverage is 0%** (flagged repeatedly): `inputSchema` parameters
       carry no `description` fields, and the tool descriptions don't compensate by
       explaining parameter semantics, valid formats, or behavioral side effects.
+      → DONE: the MCP SDK builds inputSchema from the signature and ignores docstring
+      prose, so descriptions now ride on `Annotated[type, Field(description=...)]`.
+      Added a shared `tools/_params.py` (Target / TargetPane / TargetPaneOpt aliases)
+      reused across the surface, plus inline Field descriptions for tool-specific
+      params. Coverage is now 100% (236/236 params across all 60 tools); ruff + mypy
+      clean, 187 tests pass.
 [ ] 8.7. **No "when to use this vs. alternatives" guidance** — systematically
       absent across the low scorers.
 [ ] 8.8. **Low scorers cluster in the layout toolset** (window/pane

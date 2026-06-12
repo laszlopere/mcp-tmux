@@ -7,7 +7,12 @@ window by name, and streaming a pane's output to a command.
 
 from __future__ import annotations
 
+from typing import Annotated
+
+from pydantic import Field
+
 from ..formats import FIELD_SEP, WINDOW_FIELDS, parse_records
+from ._params import Target, TargetPane
 from ._util import toolset_gate
 
 
@@ -16,7 +21,16 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_link_window(
-        src: str, dst: str, select: bool = True, target: str | None = None
+        src: Annotated[str, Field(description='Source window (e.g. "sess1:2").')],
+        dst: Annotated[
+            str,
+            Field(description='Destination, e.g. "sess2:" for next free index or "sess2:5".'),
+        ],
+        select: Annotated[
+            bool,
+            Field(description="Focus the linked window (default); False links in background (-d)."),
+        ] = True,
+        target: Target = None,
     ) -> dict:
         """Link a window into another location (it then appears in both).
 
@@ -32,7 +46,10 @@ def register(mcp, runner, enabled) -> None:
         return {"linked": True, "src": src, "dst": dst}
 
     @tool()
-    async def tmux_unlink_window(window: str, target: str | None = None) -> dict:
+    async def tmux_unlink_window(
+        window: Annotated[str, Field(description='Window to unlink (e.g. "sess:2").')],
+        target: Target = None,
+    ) -> dict:
         """Unlink a window (remove one of its links).
 
         Fails if the window is only linked once, unless it is not the last —
@@ -44,10 +61,16 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_break_pane(
-        target_pane: str,
-        window_name: str | None = None,
-        select: bool = True,
-        target: str | None = None,
+        target_pane: TargetPane,
+        window_name: Annotated[
+            str | None,
+            Field(description="Name for the new window (-n)."),
+        ] = None,
+        select: Annotated[
+            bool,
+            Field(description="Focus the new window (default); False backgrounds it (-d)."),
+        ] = True,
+        target: Target = None,
     ) -> dict:
         """Break a pane out into a new window of its own.
 
@@ -70,12 +93,21 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_join_pane(
-        src: str,
-        dst: str,
-        vertical: bool = False,
-        percentage: int | None = None,
-        select: bool = True,
-        target: str | None = None,
+        src: Annotated[str, Field(description="Pane to move (e.g. \"%3\").")],
+        dst: Annotated[str, Field(description="Pane/window whose window receives the split.")],
+        vertical: Annotated[
+            bool,
+            Field(description="Stack top/bottom instead of the default left/right."),
+        ] = False,
+        percentage: Annotated[
+            int | None,
+            Field(description="Size of the joined pane as a percentage (e.g. 30)."),
+        ] = None,
+        select: Annotated[
+            bool,
+            Field(description="Focus the joined pane (default); False keeps the original (-d)."),
+        ] = True,
+        target: Target = None,
     ) -> dict:
         """Join pane `src` into `dst`'s window as a new split (the inverse of
         break-pane).
@@ -94,9 +126,15 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_find_window(
-        pattern: str,
-        session: str | None = None,
-        target: str | None = None,
+        pattern: Annotated[
+            str,
+            Field(description="Case-insensitive substring matched against window name/title."),
+        ],
+        session: Annotated[
+            str | None,
+            Field(description="Limit the search to this session; default searches all."),
+        ] = None,
+        target: Target = None,
     ) -> dict:
         """Find windows whose name, title, or current command matches `pattern`.
 
@@ -124,10 +162,16 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_pipe_pane(
-        target_pane: str,
-        command: str | None = None,
-        only_new: bool = False,
-        target: str | None = None,
+        target_pane: TargetPane,
+        command: Annotated[
+            str | None,
+            Field(description="Shell command fed the pane's output; omit to stop piping."),
+        ] = None,
+        only_new: Annotated[
+            bool,
+            Field(description="Toggle: close an open pipe, otherwise open one (-o)."),
+        ] = False,
+        target: Target = None,
     ) -> dict:
         """Pipe a pane's output to a shell command (great for logging).
 

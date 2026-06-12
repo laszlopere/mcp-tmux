@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
+from pydantic import Field
+
 from ..formats import FIELD_SEP, parse_records
+from ._params import Target
 from ._util import toolset_gate
 
 
@@ -11,12 +16,27 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_new_window(
-        session: str | None = None,
-        name: str | None = None,
-        start_directory: str | None = None,
-        command: str | None = None,
-        select: bool = True,
-        target: str | None = None,
+        session: Annotated[
+            str | None,
+            Field(description='Target session or "sess:index" (-t); current session if omitted.'),
+        ] = None,
+        name: Annotated[
+            str | None,
+            Field(description="Name for the new window (-n)."),
+        ] = None,
+        start_directory: Annotated[
+            str | None,
+            Field(description="Working directory for the new window (-c)."),
+        ] = None,
+        command: Annotated[
+            str | None,
+            Field(description="Command to run instead of the default shell."),
+        ] = None,
+        select: Annotated[
+            bool,
+            Field(description="Focus the new window (default); False backgrounds it (-d)."),
+        ] = True,
+        target: Target = None,
     ) -> dict:
         """Create a window. `session` is the target session (or "sess:index").
 
@@ -44,7 +64,13 @@ def register(mcp, runner, enabled) -> None:
         return rec[0] if rec else {}
 
     @tool()
-    async def tmux_next_layout(window: str | None = None, target: str | None = None) -> dict:
+    async def tmux_next_layout(
+        window: Annotated[
+            str | None,
+            Field(description="Window to rotate (-t); the current window if omitted."),
+        ] = None,
+        target: Target = None,
+    ) -> dict:
         """Rotate a window to its next preset layout (next-layout).
 
         With `window` (-t), acts on that window; otherwise the current one.
@@ -57,7 +83,11 @@ def register(mcp, runner, enabled) -> None:
         return {"window": window}
 
     @tool()
-    async def tmux_move_window(src: str, dst: str, target: str | None = None) -> dict:
+    async def tmux_move_window(
+        src: Annotated[str, Field(description='Window to move (e.g. "sess:5").')],
+        dst: Annotated[str, Field(description='Destination session:index (e.g. "sess:2").')],
+        target: Target = None,
+    ) -> dict:
         """Move/renumber a window from `src` to `dst` (e.g. "sess:5")."""
         await runner.run_checked(["move-window", "-s", src, "-t", dst], target=target)
         return {"moved": True, "src": src, "dst": dst}

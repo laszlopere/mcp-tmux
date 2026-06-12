@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from ..formats import FIELD_SEP, parse_records
+from ._params import Target
 from ._util import toolset_gate
 
 
@@ -12,22 +15,49 @@ def register(mcp, runner, enabled) -> None:
     tool = toolset_gate(mcp, enabled)
 
     @tool()
-    async def tmux_has_session(session: str, target: str | None = None) -> dict:
+    async def tmux_has_session(
+        session: Annotated[str, Field(description="Session name or id to check for.")],
+        target: Target = None,
+    ) -> dict:
         """Check whether a session exists. Returns {"exists": bool}."""
         result = await runner.run(["has-session", "-t", session], target=target)
         return {"exists": result.ok}
 
     @tool()
     async def tmux_new_session(
-        name: str | None = None,
-        start_directory: str | None = None,
-        command: str | None = None,
-        width: int | None = None,
-        height: int | None = None,
-        detached: bool = True,
-        attach_or_create: bool = False,
-        env: dict[str, str] | None = None,
-        target: str | None = None,
+        name: Annotated[
+            str | None,
+            Field(description="Name for the new session (-s)."),
+        ] = None,
+        start_directory: Annotated[
+            str | None,
+            Field(description="Working directory for the first pane (-c)."),
+        ] = None,
+        command: Annotated[
+            str | None,
+            Field(description="Command to run as the first pane instead of the default shell."),
+        ] = None,
+        width: Annotated[
+            int | None,
+            Field(description="Width in columns for the detached session (-x)."),
+        ] = None,
+        height: Annotated[
+            int | None,
+            Field(description="Height in rows for the detached session (-y)."),
+        ] = None,
+        detached: Annotated[
+            bool,
+            Field(description="Create the session detached (-d); default True."),
+        ] = True,
+        attach_or_create: Annotated[
+            bool,
+            Field(description="Reuse an existing session of this name instead of erroring."),
+        ] = False,
+        env: Annotated[
+            dict[str, str] | None,
+            Field(description="Session environment variables (-e KEY=VAL; tmux 3.0+)."),
+        ] = None,
+        target: Target = None,
     ) -> dict:
         """Create a new session (detached by default).
 

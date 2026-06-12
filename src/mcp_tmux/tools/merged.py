@@ -12,7 +12,12 @@ See TODO P6 for the equivalence-class inventory and the merge rationale.
 
 from __future__ import annotations
 
+from typing import Annotated
+
+from pydantic import Field
+
 from ..formats import CLIENT_FIELDS, FIELD_SEP, SESSION_FIELDS, WINDOW_FIELDS
+from ._params import Target
 from ._util import require_kind, toolset_gate
 
 
@@ -20,7 +25,22 @@ def register(mcp, runner, enabled) -> None:
     tool = toolset_gate(mcp, enabled)
 
     @tool()
-    async def tmux_list(kind: str, scope: str | None = None, target: str | None = None) -> dict:
+    async def tmux_list(
+        kind: Annotated[
+            str,
+            Field(description='What to enumerate: "session", "window", "client", or "buffer".'),
+        ],
+        scope: Annotated[
+            str | None,
+            Field(
+                description=(
+                    "Context for the listing: a session for kind=\"window\"/\"client\" "
+                    "(omit for server-wide); ignored for \"session\"/\"buffer\"."
+                )
+            ),
+        ] = None,
+        target: Target = None,
+    ) -> dict:
         """List sessions, windows, clients, or paste buffers.
 
         `kind` selects what to enumerate:
@@ -63,7 +83,22 @@ def register(mcp, runner, enabled) -> None:
         return {"items": items, "kind": kind}
 
     @tool()
-    async def tmux_kill(kind: str, id: str | None = None, target: str | None = None) -> dict:
+    async def tmux_kill(
+        kind: Annotated[
+            str,
+            Field(description='What to kill: "session", "window", "pane", or "server".'),
+        ],
+        id: Annotated[
+            str | None,
+            Field(
+                description=(
+                    'The entity to kill (e.g. session "work", window "sess:2", pane '
+                    '"%3"); required for every kind except "server".'
+                )
+            ),
+        ] = None,
+        target: Target = None,
+    ) -> dict:
         """Kill a session, window, pane, or the whole server (destructive).
 
         Irreversible and immediate: tmux does not prompt for confirmation, and
@@ -94,7 +129,15 @@ def register(mcp, runner, enabled) -> None:
         return {"killed": True, "kind": kind, "id": id}
 
     @tool()
-    async def tmux_rename(kind: str, id: str, new_name: str, target: str | None = None) -> dict:
+    async def tmux_rename(
+        kind: Annotated[str, Field(description='What to rename: "session" or "window".')],
+        id: Annotated[
+            str,
+            Field(description='The entity to rename (e.g. "work" or "work:2").'),
+        ],
+        new_name: Annotated[str, Field(description="The new name to assign.")],
+        target: Target = None,
+    ) -> dict:
         """Rename a session or window.
 
         `kind` is "session" or "window"; `id` is the entity to rename. Maps to
@@ -107,7 +150,14 @@ def register(mcp, runner, enabled) -> None:
         return {"renamed": True, "kind": kind, "name": new_name}
 
     @tool()
-    async def tmux_select(kind: str, id: str, target: str | None = None) -> dict:
+    async def tmux_select(
+        kind: Annotated[str, Field(description='What to activate: "window" or "pane".')],
+        id: Annotated[
+            str,
+            Field(description='The entity to activate (e.g. "mysess:2" or pane "%3").'),
+        ],
+        target: Target = None,
+    ) -> dict:
         """Make a window or pane the active (focused) one.
 
         Moves the selection so that subsequent interactive input and any attached
@@ -131,7 +181,22 @@ def register(mcp, runner, enabled) -> None:
         return {"selected": id, "kind": kind}
 
     @tool()
-    async def tmux_last(kind: str, scope: str | None = None, target: str | None = None) -> dict:
+    async def tmux_last(
+        kind: Annotated[
+            str,
+            Field(description='Which previously selected entity to return to: "window" or "pane".'),
+        ],
+        scope: Annotated[
+            str | None,
+            Field(
+                description=(
+                    'The -t context: a session for kind="window", a window for '
+                    'kind="pane"; omit to act on the current one.'
+                )
+            ),
+        ] = None,
+        target: Target = None,
+    ) -> dict:
         """Switch to the previously selected window or pane.
 
         `kind` is "window" (last-window) or "pane" (last-pane). `scope` is the
@@ -148,7 +213,22 @@ def register(mcp, runner, enabled) -> None:
         return {"selected": "last", "kind": kind}
 
     @tool()
-    async def tmux_swap(kind: str, src: str, dst: str, target: str | None = None) -> dict:
+    async def tmux_swap(
+        kind: Annotated[str, Field(description='What to exchange: "window" or "pane".')],
+        src: Annotated[
+            str,
+            Field(
+                description='One of the two entities to exchange (e.g. "dev:1" or "%3").'
+            ),
+        ],
+        dst: Annotated[
+            str,
+            Field(
+                description="The other entity to exchange; order relative to src does not matter."
+            ),
+        ],
+        target: Target = None,
+    ) -> dict:
         """Exchange the positions of two windows or two panes.
 
         Swapping trades the two entities' slots: each ends up where the other
@@ -180,13 +260,28 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_respawn(
-        kind: str,
-        id: str,
-        command: str | None = None,
-        kill: bool = False,
-        start_directory: str | None = None,
-        env: dict[str, str] | None = None,
-        target: str | None = None,
+        kind: Annotated[str, Field(description='What to respawn: "pane" or "window".')],
+        id: Annotated[
+            str,
+            Field(description='The entity to respawn (e.g. pane "%3" or window "dev:1").'),
+        ],
+        command: Annotated[
+            str | None,
+            Field(description="Command to run; defaults to the entity's original command."),
+        ] = None,
+        kill: Annotated[
+            bool,
+            Field(description="Force-restart even if the command is still running (-k)."),
+        ] = False,
+        start_directory: Annotated[
+            str | None,
+            Field(description="Working directory for the respawned command (-c)."),
+        ] = None,
+        env: Annotated[
+            dict[str, str] | None,
+            Field(description="Environment variables to inject (-e KEY=VAL; requires tmux 3.0+)."),
+        ] = None,
+        target: Target = None,
     ) -> dict:
         """Restart the command in a pane or window, reusing it in place.
 

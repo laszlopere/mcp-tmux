@@ -9,6 +9,11 @@ usually simpler than copying a selection.
 
 from __future__ import annotations
 
+from typing import Annotated
+
+from pydantic import Field
+
+from ._params import Target, TargetPane
 from ._util import toolset_gate
 
 # direction -> the send-keys -X copy-mode command it maps to.
@@ -38,10 +43,16 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_copy_mode(
-        target_pane: str,
-        page_up: bool = False,
-        exit: bool = False,
-        target: str | None = None,
+        target_pane: TargetPane,
+        page_up: Annotated[
+            bool,
+            Field(description="Scroll up one page on entry (-u)."),
+        ] = False,
+        exit: Annotated[
+            bool,
+            Field(description="Leave copy mode instead of entering it."),
+        ] = False,
+        target: Target = None,
     ) -> dict:
         """Enter (or exit) copy mode in a pane.
 
@@ -64,10 +75,21 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_copy_scroll(
-        target_pane: str,
-        direction: str = "up",
-        amount: int = 1,
-        target: str | None = None,
+        target_pane: TargetPane,
+        direction: Annotated[
+            str,
+            Field(
+                description=(
+                    "Scroll direction: up, down, page-up, page-down, halfpage-up, "
+                    "halfpage-down, top, bottom."
+                )
+            ),
+        ] = "up",
+        amount: Annotated[
+            int,
+            Field(description="Repeat count for the step (ignored for top/bottom)."),
+        ] = 1,
+        target: Target = None,
     ) -> dict:
         """Scroll within copy mode.
 
@@ -87,10 +109,13 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_copy_search(
-        target_pane: str,
-        pattern: str,
-        backward: bool = True,
-        target: str | None = None,
+        target_pane: TargetPane,
+        pattern: Annotated[str, Field(description="Text to search the scrollback for.")],
+        backward: Annotated[
+            bool,
+            Field(description="Search towards top of history (default); False searches forward."),
+        ] = True,
+        target: Target = None,
     ) -> dict:
         """Search the scrollback in copy mode for `pattern`.
 

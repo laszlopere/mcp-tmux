@@ -7,7 +7,12 @@ introspection.
 
 from __future__ import annotations
 
+from typing import Annotated
+
+from pydantic import Field
+
 from ..targets import list_target_names
+from ._params import Target, TargetPaneOpt
 from ._util import toolset_gate
 
 
@@ -16,9 +21,15 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_command(
-        args: list[str],
-        target: str | None = None,
-        timeout: float | None = None,
+        args: Annotated[
+            list[str],
+            Field(description='tmux subcommand + flags as a list (no leading "tmux").'),
+        ],
+        target: Target = None,
+        timeout: Annotated[
+            float | None,
+            Field(description="Max seconds to wait for the command."),
+        ] = None,
     ) -> dict:
         """Run an arbitrary tmux command and return its raw result.
 
@@ -43,9 +54,12 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_query(
-        format: str,
-        target_pane: str | None = None,
-        target: str | None = None,
+        format: Annotated[
+            str,
+            Field(description='tmux format string to expand, e.g. "#{pane_current_path}".'),
+        ],
+        target_pane: TargetPaneOpt = None,
+        target: Target = None,
     ) -> dict:
         """Evaluate a tmux format string (e.g. "#{pane_current_path}").
 
@@ -61,7 +75,7 @@ def register(mcp, runner, enabled) -> None:
         return {"value": out.rstrip("\n")}
 
     @tool()
-    async def tmux_version(target: str | None = None) -> dict:
+    async def tmux_version(target: Target = None) -> dict:
         """Report the target's tmux version and whether it is supported (1.8+)."""
         caps = await runner.capabilities(target)
         return {

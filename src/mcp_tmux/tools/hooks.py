@@ -7,6 +7,11 @@ require tmux 2.2+.
 
 from __future__ import annotations
 
+from typing import Annotated
+
+from pydantic import Field
+
+from ._params import Target, TargetPaneOpt
 from ._util import toolset_gate
 
 
@@ -15,11 +20,23 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_set_hook(
-        hook: str,
-        command: str | None = None,
-        global_: bool = False,
-        unset: bool = False,
-        target: str | None = None,
+        hook: Annotated[
+            str,
+            Field(description='Event name, e.g. "pane-died" or "session-created".'),
+        ],
+        command: Annotated[
+            str | None,
+            Field(description="tmux command to run on the event; required unless unset=True."),
+        ] = None,
+        global_: Annotated[
+            bool,
+            Field(description="Set the hook server-wide (-g)."),
+        ] = False,
+        unset: Annotated[
+            bool,
+            Field(description="Remove the hook instead of setting it (-u)."),
+        ] = False,
+        target: Target = None,
     ) -> dict:
         """Set (or unset) a hook that runs a tmux command on an event.
 
@@ -43,9 +60,15 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_show_hooks(
-        global_: bool = False,
-        target_entity: str | None = None,
-        target: str | None = None,
+        global_: Annotated[
+            bool,
+            Field(description="Show server-wide hooks instead of a session's (-g)."),
+        ] = False,
+        target_entity: Annotated[
+            str | None,
+            Field(description="Session/window to read hooks from (-t)."),
+        ] = None,
+        target: Target = None,
     ) -> dict:
         """Show the hooks set on the server/session. Returns {"hooks": {name: command}}."""
         args = ["show-hooks"]
@@ -64,10 +87,13 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_run_shell(
-        command: str,
-        background: bool = False,
-        target_pane: str | None = None,
-        target: str | None = None,
+        command: Annotated[str, Field(description="Shell command to run via run-shell.")],
+        background: Annotated[
+            bool,
+            Field(description="Run without waiting for completion (-b)."),
+        ] = False,
+        target_pane: TargetPaneOpt = None,
+        target: Target = None,
     ) -> dict:
         """Run a shell command from tmux via `run-shell`.
 
@@ -87,12 +113,27 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_if_shell(
-        condition: str,
-        if_command: str,
-        else_command: str | None = None,
-        background: bool = False,
-        is_format: bool = False,
-        target: str | None = None,
+        condition: Annotated[
+            str,
+            Field(description="Shell command (or tmux format if is_format) tested for success."),
+        ],
+        if_command: Annotated[
+            str,
+            Field(description="tmux command to run when the condition succeeds."),
+        ],
+        else_command: Annotated[
+            str | None,
+            Field(description="tmux command to run when the condition fails."),
+        ] = None,
+        background: Annotated[
+            bool,
+            Field(description="Run in the background (-b)."),
+        ] = False,
+        is_format: Annotated[
+            bool,
+            Field(description='Treat condition as a tmux format, true unless empty or "0" (-F).'),
+        ] = False,
+        target: Target = None,
     ) -> dict:
         """Run a tmux command conditionally with `if-shell`.
 

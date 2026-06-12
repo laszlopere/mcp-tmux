@@ -7,6 +7,11 @@ capabilities.
 
 from __future__ import annotations
 
+from typing import Annotated
+
+from pydantic import Field
+
+from ._params import Target
 from ._util import toolset_gate
 
 
@@ -21,7 +26,13 @@ def register(mcp, runner, enabled) -> None:
     tool = toolset_gate(mcp, enabled)
 
     @tool()
-    async def tmux_list_keys(table: str | None = None, target: str | None = None) -> dict:
+    async def tmux_list_keys(
+        table: Annotated[
+            str | None,
+            Field(description='Restrict to one key table, e.g. "prefix", "root", "copy-mode".'),
+        ] = None,
+        target: Target = None,
+    ) -> dict:
         """List key bindings, optionally restricted to one key `table` (e.g.
         "prefix", "root", "copy-mode"). Returns the raw bindings as
         {"keys": <text>, "lines": [...]} — one `bind-key ...` line each."""
@@ -32,12 +43,24 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_bind_key(
-        key: str,
-        command: list[str],
-        table: str | None = None,
-        repeat: bool = False,
-        root: bool = False,
-        target: str | None = None,
+        key: Annotated[str, Field(description='Key to bind, e.g. "C-a" or "F2".')],
+        command: Annotated[
+            list[str],
+            Field(description='tmux command + args as a list, e.g. ["new-window", "-n", "logs"].'),
+        ],
+        table: Annotated[
+            str | None,
+            Field(description="Key table to bind in."),
+        ] = None,
+        repeat: Annotated[
+            bool,
+            Field(description="Allow the key to repeat while held (-r)."),
+        ] = False,
+        root: Annotated[
+            bool,
+            Field(description="Bind in the root table so no prefix is needed (-n)."),
+        ] = False,
+        target: Target = None,
     ) -> dict:
         """Bind `key` to a tmux command.
 
@@ -60,11 +83,23 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_unbind_key(
-        key: str | None = None,
-        table: str | None = None,
-        root: bool = False,
-        all: bool = False,
-        target: str | None = None,
+        key: Annotated[
+            str | None,
+            Field(description="Key to unbind; required unless all=True."),
+        ] = None,
+        table: Annotated[
+            str | None,
+            Field(description="Key table to unbind from."),
+        ] = None,
+        root: Annotated[
+            bool,
+            Field(description="Target the root table (-n)."),
+        ] = False,
+        all: Annotated[
+            bool,
+            Field(description="Clear every binding (in table if given) (-a)."),
+        ] = False,
+        target: Target = None,
     ) -> dict:
         """Unbind a key. Provide `key`, or all=True (-a) to clear every binding
         (in `table` if given). root=True (-n) targets the root table. Returns

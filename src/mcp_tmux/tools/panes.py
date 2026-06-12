@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
+from pydantic import Field
+
 from ..formats import FIELD_SEP, PANE_FIELDS, parse_records
+from ._params import Target, TargetPane, TargetPaneOpt
 from ._util import toolset_gate
 
 
@@ -11,9 +16,15 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_list_panes(
-        window: str | None = None,
-        session: str | None = None,
-        target: str | None = None,
+        window: Annotated[
+            str | None,
+            Field(description="Scope to a single window (-t); takes precedence over session."),
+        ] = None,
+        session: Annotated[
+            str | None,
+            Field(description="Scope to all panes in a session (-s)."),
+        ] = None,
+        target: Target = None,
     ) -> dict:
         """List panes. Scope to a `window` (-t), a `session` (-s), or the whole
         server (default, -a)."""
@@ -29,13 +40,30 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_split_window(
-        target_pane: str | None = None,
-        vertical: bool = False,
-        start_directory: str | None = None,
-        command: str | None = None,
-        percentage: int | None = None,
-        select: bool = True,
-        target: str | None = None,
+        target_pane: TargetPaneOpt = None,
+        vertical: Annotated[
+            bool,
+            Field(description="Split top/bottom instead of the default left/right."),
+        ] = False,
+        start_directory: Annotated[
+            str | None,
+            Field(description="Working directory for the new pane (-c)."),
+        ] = None,
+        command: Annotated[
+            str | None,
+            Field(description="Shell command to run in the new pane instead of the default shell."),
+        ] = None,
+        percentage: Annotated[
+            int | None,
+            Field(description="Size of the new pane as a percentage of the space (e.g. 30)."),
+        ] = None,
+        select: Annotated[
+            bool,
+            Field(
+                description="Focus the new pane (default); False keeps focus on the original (-d)."
+            ),
+        ] = True,
+        target: Target = None,
     ) -> dict:
         """Split a pane. By default splits left/right; vertical=True splits
         top/bottom. `percentage` sizes the new pane (e.g. 30). select=False
@@ -63,7 +91,12 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_set_pane_title(
-        title: str, target_pane: str | None = None, target: str | None = None
+        title: Annotated[
+            str,
+            Field(description="The title to set as the pane's #{pane_title} label."),
+        ],
+        target_pane: TargetPaneOpt = None,
+        target: Target = None,
     ) -> dict:
         """Set a pane's title (select-pane -T, tmux 2.6+).
 
@@ -86,12 +119,24 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_resize_pane(
-        target_pane: str,
-        left: int | None = None,
-        right: int | None = None,
-        up: int | None = None,
-        down: int | None = None,
-        target: str | None = None,
+        target_pane: TargetPane,
+        left: Annotated[
+            int | None,
+            Field(description="Cells to push the left border outward (-L)."),
+        ] = None,
+        right: Annotated[
+            int | None,
+            Field(description="Cells to push the right border outward (-R)."),
+        ] = None,
+        up: Annotated[
+            int | None,
+            Field(description="Cells to push the top border outward (-U)."),
+        ] = None,
+        down: Annotated[
+            int | None,
+            Field(description="Cells to push the bottom border outward (-D)."),
+        ] = None,
+        target: Target = None,
     ) -> dict:
         """Grow or shrink a pane by a number of cells, per direction.
 
@@ -126,7 +171,10 @@ def register(mcp, runner, enabled) -> None:
         return {"resized": target_pane}
 
     @tool()
-    async def tmux_clear_history(target_pane: str | None = None, target: str | None = None) -> dict:
+    async def tmux_clear_history(
+        target_pane: TargetPaneOpt = None,
+        target: Target = None,
+    ) -> dict:
         """Wipe a pane's scrollback history (clear-history -t pane).
 
         Use this before a `tmux_send_keys` / `tmux_run` so a subsequent
@@ -144,7 +192,20 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_select_layout(
-        layout: str, window: str | None = None, target: str | None = None
+        layout: Annotated[
+            str,
+            Field(
+                description=(
+                    "Named layout (even-horizontal, even-vertical, main-horizontal, "
+                    "main-vertical, tiled) or a tmux layout string."
+                )
+            ),
+        ],
+        window: Annotated[
+            str | None,
+            Field(description="Window to apply the layout to (-t); defaults to the current."),
+        ] = None,
+        target: Target = None,
     ) -> dict:
         """Apply a named layout (even-horizontal, even-vertical, main-horizontal,
         main-vertical, tiled) or a layout string to a window."""

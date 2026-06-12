@@ -6,7 +6,12 @@ observe results.
 
 from __future__ import annotations
 
+from typing import Annotated
+
+from pydantic import Field
+
 from ._capture import capture_text
+from ._params import Target, TargetPane, TargetPaneOpt
 from ._util import toolset_gate
 
 
@@ -15,12 +20,24 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_send_keys(
-        target_pane: str,
-        text: str | None = None,
-        keys: list[str] | None = None,
-        enter: bool = False,
-        literal: bool = True,
-        target: str | None = None,
+        target_pane: TargetPane,
+        text: Annotated[
+            str | None,
+            Field(description="Literal string to type (mutually exclusive with keys)."),
+        ] = None,
+        keys: Annotated[
+            list[str] | None,
+            Field(description='tmux key tokens to send, e.g. ["C-c"], ["Up", "Enter"].'),
+        ] = None,
+        enter: Annotated[
+            bool,
+            Field(description="Append an Enter keypress after the input (i.e. run it)."),
+        ] = False,
+        literal: Annotated[
+            bool,
+            Field(description="Send text exactly (-l); False lets tmux interpret key names."),
+        ] = True,
+        target: Target = None,
     ) -> dict:
         """Send input to a pane.
 
@@ -58,13 +75,28 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_capture_pane(
-        target_pane: str | None = None,
-        start: int | str | None = None,
-        end: int | str | None = None,
-        escapes: bool = False,
-        join: bool = True,
-        trim: bool = True,
-        target: str | None = None,
+        target_pane: TargetPaneOpt = None,
+        start: Annotated[
+            int | str | None,
+            Field(description='Scrollback start line (-S); negative or "-" for start of history.'),
+        ] = None,
+        end: Annotated[
+            int | str | None,
+            Field(description='Scrollback end line (-E); "-" for the end of history.'),
+        ] = None,
+        escapes: Annotated[
+            bool,
+            Field(description="Keep ANSI color/escape sequences (-e)."),
+        ] = False,
+        join: Annotated[
+            bool,
+            Field(description="Rejoin wrapped lines (-J)."),
+        ] = True,
+        trim: Annotated[
+            bool,
+            Field(description="Drop trailing empty padding lines (default); False keeps raw."),
+        ] = True,
+        target: Target = None,
     ) -> dict:
         """Capture (read) the visible contents and/or scrollback of a pane.
 

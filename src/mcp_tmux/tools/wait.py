@@ -11,8 +11,12 @@ import asyncio
 import re
 import time
 import uuid
+from typing import Annotated
+
+from pydantic import Field
 
 from ._capture import capture_text
+from ._params import Target, TargetPane
 from ._util import toolset_gate
 
 # Default polling cadence (seconds) for all waiters.
@@ -47,13 +51,28 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_wait_for_text(
-        target_pane: str,
-        pattern: str,
-        timeout: float = 30.0,
-        regex: bool = False,
-        history: int | None = None,
-        poll_interval: float = DEFAULT_POLL,
-        target: str | None = None,
+        target_pane: TargetPane,
+        pattern: Annotated[
+            str,
+            Field(description="Text to wait for: a substring, or a regex when regex=True."),
+        ],
+        timeout: Annotated[
+            float,
+            Field(description="Max seconds to wait before giving up."),
+        ] = 30.0,
+        regex: Annotated[
+            bool,
+            Field(description="Treat pattern as a regular expression."),
+        ] = False,
+        history: Annotated[
+            int | None,
+            Field(description="Include this many scrollback lines in each check (-S)."),
+        ] = None,
+        poll_interval: Annotated[
+            float,
+            Field(description="Seconds between capture checks."),
+        ] = DEFAULT_POLL,
+        target: Target = None,
     ) -> dict:
         """Wait until `pattern` appears in a pane, or `timeout` seconds elapse.
 
@@ -94,11 +113,20 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_wait_for_idle(
-        target_pane: str,
-        idle_seconds: float = 1.0,
-        timeout: float = 30.0,
-        poll_interval: float = DEFAULT_POLL,
-        target: str | None = None,
+        target_pane: TargetPane,
+        idle_seconds: Annotated[
+            float,
+            Field(description="Seconds the content must stay unchanged to count as idle."),
+        ] = 1.0,
+        timeout: Annotated[
+            float,
+            Field(description="Max seconds to wait before giving up."),
+        ] = 30.0,
+        poll_interval: Annotated[
+            float,
+            Field(description="Seconds between capture checks."),
+        ] = DEFAULT_POLL,
+        target: Target = None,
     ) -> dict:
         """Wait until a pane's visible content stops changing.
 
@@ -123,12 +151,24 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_run(
-        target_pane: str,
-        command: str,
-        timeout: float = 30.0,
-        history: int = 2000,
-        poll_interval: float = DEFAULT_POLL,
-        target: str | None = None,
+        target_pane: TargetPane,
+        command: Annotated[
+            str,
+            Field(description="Non-interactive shell command to run at the pane's prompt."),
+        ],
+        timeout: Annotated[
+            float,
+            Field(description="Max seconds to wait for the command to finish."),
+        ] = 30.0,
+        history: Annotated[
+            int,
+            Field(description="Scrollback lines to scan when locating the output markers."),
+        ] = 2000,
+        poll_interval: Annotated[
+            float,
+            Field(description="Seconds between capture checks."),
+        ] = DEFAULT_POLL,
+        target: Target = None,
     ) -> dict:
         """Run a shell command in a pane and return just its output + exit code.
 

@@ -8,6 +8,11 @@ spawned in the session's panes/windows.
 
 from __future__ import annotations
 
+from typing import Annotated
+
+from pydantic import Field
+
+from ._params import Target
 from ._util import toolset_gate
 
 
@@ -16,13 +21,28 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_set_environment(
-        name: str,
-        value: str | None = None,
-        global_: bool = False,
-        remove: bool = False,
-        unset: bool = False,
-        session: str | None = None,
-        target: str | None = None,
+        name: Annotated[str, Field(description="Environment variable name.")],
+        value: Annotated[
+            str | None,
+            Field(description="Value to set; omit when removing/unsetting."),
+        ] = None,
+        global_: Annotated[
+            bool,
+            Field(description="Affect the global environment new sessions inherit (-g)."),
+        ] = False,
+        remove: Annotated[
+            bool,
+            Field(description="Mark the variable for removal so children see it unset (-r)."),
+        ] = False,
+        unset: Annotated[
+            bool,
+            Field(description="Delete the variable from this session's environment (-u)."),
+        ] = False,
+        session: Annotated[
+            str | None,
+            Field(description="Target session (-t); current session if omitted."),
+        ] = None,
+        target: Target = None,
     ) -> dict:
         """Set or unset an environment variable for a session (or globally).
 
@@ -60,10 +80,19 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_show_environment(
-        name: str | None = None,
-        global_: bool = False,
-        session: str | None = None,
-        target: str | None = None,
+        name: Annotated[
+            str | None,
+            Field(description="Return just this variable; omit for the whole environment."),
+        ] = None,
+        global_: Annotated[
+            bool,
+            Field(description="Show the global environment instead of a session's (-g)."),
+        ] = False,
+        session: Annotated[
+            str | None,
+            Field(description="Target session (-t); current session if omitted."),
+        ] = None,
+        target: Target = None,
     ) -> dict:
         """Show a session's environment (or the global one with `global_=True`).
 
