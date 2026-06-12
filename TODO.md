@@ -443,3 +443,43 @@ split. 16 new tests in `test_toolsets.py`; 187 passing; ruff + mypy clean.
 [ ] 6.3. Field separator is **TAB** (tmux escapes control bytes like `0x1f` to octal in
   format output, but passes TAB through). Revisit only if a real value ever
   contains a tab.
+
+---
+
+## P8 — Glama Tool Definition Quality critiques (2026-06-12 scorecard)
+
+From Glama's automated score (overall **C / 58%**): Server Coherence **A** and
+Maintenance **A**, but **Tool Definition Quality** averaged only **3.6/5** across
+the 71 tools (all toolsets enabled) and dragged the overall down. Problems flagged
+below — critiques only, no fixes yet.
+
+### Lowest-scoring tools
+
+[x] 8.1. **`tmux_swap_window` — 1.9/5.** Extremely terse description ("Swap two
+      windows"); zero parameter documentation, no behavioral disclosure, no usage
+      guidance. → DONE: rewrote the `tmux_swap` docstring (the merged successor)
+      with behavioral disclosure (positions swap, contents travel, geometry
+      preserved), per-parameter docs incl. target syntax, and when-to-use guidance
+      vs `tmux_move_window` / `tmux_select_layout`.
+[ ] 8.2. **`tmux_kill_pane` — 2.2/5.** Single-sentence description; lacks essential
+      context about its parameters (`target_pane`, `target`) and under-documents
+      the destructive behavior beyond the annotation.
+[ ] 8.3. **`tmux_select_pane` — 2.3/5.** Two inputs, both undocumented; no
+      behavioral context and no usage scenarios.
+[ ] 8.4. **`tmux_resize_pane` — 2.4/5.** Six parameters (only one required), yet the
+      description doesn't clarify how the parameters interact or explain the
+      directional-resizing mechanics.
+[ ] 8.5. **`tmux_swap_pane` — 2.4/5.** No explanation of what "swap" means in
+      practice or of the parameter semantics (`src`, `dst`, `target` left
+      undefined).
+
+### Cross-cutting patterns
+
+[ ] 8.6. **Schema coverage is 0%** (flagged repeatedly): `inputSchema` parameters
+      carry no `description` fields, and the tool descriptions don't compensate by
+      explaining parameter semantics, valid formats, or behavioral side effects.
+[ ] 8.7. **No "when to use this vs. alternatives" guidance** — systematically
+      absent across the low scorers.
+[ ] 8.8. **Low scorers cluster in the layout toolset** (window/pane
+      swap/select/resize/kill) — the curated core tools (capture, send-keys, wait
+      helpers) are richly documented and are what earned the coherence A.

@@ -127,10 +127,28 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_swap(kind: str, src: str, dst: str, target: str | None = None) -> dict:
-        """Swap two windows or two panes.
+        """Exchange the positions of two windows or two panes.
 
-        `kind` is "window" or "pane"; `src` and `dst` are the two entities.
+        Swapping trades the two entities' slots: each ends up where the other
+        was. For windows that means their index positions within the session are
+        exchanged; for panes, their positions within the window's layout. The
+        contents (running programs, history) travel with each entity — only the
+        location changes. Geometry is preserved, so swapping two panes of unequal
+        size makes each take over the other's cell.
+
+        `kind` — "window" or "pane".
+        `src`, `dst` — the two entities to exchange, in tmux target syntax: for
+          windows a session:index like "dev:1" (or a bare index for the current
+          session); for panes a pane id like "%3" or a window:pane like "dev:1.2".
+          The order of `src`/`dst` does not matter — the result is symmetric.
+        `target` — optional host/profile to run against (omit for local).
+
         Maps to `swap-<kind> -s src -t dst`.
+
+        When to use: reach for this to reorder existing entities relative to each
+        other. To move one window to a different (possibly empty) index instead,
+        use `tmux_move_window`; to rearrange all panes in a window at once, use a
+        layout via `tmux_select_layout`.
 
         Returns {"swapped": True, "kind": kind, "src": src, "dst": dst}.
         """
