@@ -1,9 +1,11 @@
 # mcp-tmux
 
 [![CI](https://github.com/laszlopere/mcp-tmux/actions/workflows/ci.yml/badge.svg)](https://github.com/laszlopere/mcp-tmux/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/mcp-tmux.svg)](https://pypi.org/project/mcp-tmux/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2.svg)](https://github.com/sponsors/laszlopere)
+[![mcp-tmux MCP server](https://glama.ai/mcp/servers/laszlopere/mcp-tmux/badges/score.svg)](https://glama.ai/mcp/servers/laszlopere/mcp-tmux)
 
 A comprehensive, universal [MCP](https://modelcontextprotocol.io) server for
 driving **tmux** — sessions, windows, panes, sending keystrokes, and reading
