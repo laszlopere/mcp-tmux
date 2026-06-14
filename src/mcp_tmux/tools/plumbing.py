@@ -98,7 +98,7 @@ def register(mcp, runner, enabled) -> None:
 
     @tool()
     async def tmux_join_pane(
-        src: Annotated[str, Field(description="Pane to move (e.g. \"%3\").")],
+        src: Annotated[str, Field(description='Pane to move (e.g. "%3").')],
         dst: Annotated[str, Field(description="Pane/window whose window receives the split.")],
         vertical: Annotated[
             bool,

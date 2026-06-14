@@ -34,8 +34,8 @@ def register(mcp, runner, enabled) -> None:
             str | None,
             Field(
                 description=(
-                    "Context for the listing: a session for kind=\"window\"/\"client\" "
-                    "(omit for server-wide); ignored for \"session\"/\"buffer\"."
+                    'Context for the listing: a session for kind="window"/"client" '
+                    '(omit for server-wide); ignored for "session"/"buffer".'
                 )
             ),
         ] = None,
@@ -223,9 +223,7 @@ def register(mcp, runner, enabled) -> None:
         kind: Annotated[str, Field(description='What to exchange: "window" or "pane".')],
         src: Annotated[
             str,
-            Field(
-                description='One of the two entities to exchange (e.g. "dev:1" or "%3").'
-            ),
+            Field(description='One of the two entities to exchange (e.g. "dev:1" or "%3").'),
         ],
         dst: Annotated[
             str,
