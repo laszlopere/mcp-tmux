@@ -10,6 +10,7 @@ from mcp.server.fastmcp import FastMCP
 from . import resources
 from .config import load_config
 from .runner import TmuxRunner
+from .tolerant import TolerantFastMCP
 from .tools import register_all
 from .toolsets import resolve_enabled, select_toolsets
 
@@ -45,7 +46,7 @@ def build_server(config: dict[str, Any] | None = None, config_path: Path | None 
     """Construct and fully wire the FastMCP server."""
     cfg = config if config is not None else load_config(config_path)
     runner = TmuxRunner(cfg)
-    mcp = FastMCP("tmux", instructions=INSTRUCTIONS)
+    mcp = TolerantFastMCP("tmux", instructions=INSTRUCTIONS)
     enabled = resolve_enabled(select_toolsets(cfg))
     register_all(mcp, runner, enabled)
     resources.register(mcp, runner)

@@ -505,3 +505,33 @@ below — critiques only, no fixes yet.
       → RESOLVED by 8.1–8.7: the layout/plumbing tools now match the core tools'
       documentation depth (behavioral disclosure + 100% param schema coverage +
       when-to-use guidance). Observation item, no separate code change.
+
+## P9 — Tolerate LLM-mangled JSON in tool-call arguments ✅ DONE
+
+Ported from mcp-abacus's TODO 43 (howto: ~/llm-json-errors-howto.text). LLMs
+sometimes send a tool call's `arguments` as broken JSON — most often the whole
+object double-encoded as a JSON *string*, or with single quotes / trailing
+commas / unquoted barewords. By default these die in the SDK's strict validation
+before any tool code runs, and the model gets a cryptic protocol error it loops on.
+
+[x] 9.1. **Tolerant parse via a stdio stream interposer** (fix A). New
+      `src/mcp_tmux/tolerant.py`: `repair_arguments()` (strict `json.loads` first,
+      then `json-repair`; guards `isinstance(..., dict)` and hands the ORIGINAL
+      back on unsalvageable junk). `run_stdio_repaired()` interposes the read
+      stream and repairs each `tools/call` message before the session's strict
+      `ClientRequest` validation. Added `json-repair>=0.61.0` dep.
+[x] 9.2. **Actionable errors** (fix B). Unrepairable `arguments` get an
+      actionable `-32700` parse-error reply straight from the interposer (request
+      not forwarded, so the session never double-answers the id). `TolerantFastMCP`
+      subclass reshapes FastMCP's per-tool pydantic `ValidationError` into a
+      plain-English `field expected X, received Y` sentence built from
+      `exc.errors()` (no `errors.pydantic.dev` URL or stack noise leaks).
+[x] 9.3. **Wiring.** `build_server()` now constructs `TolerantFastMCP`;
+      `__main__._serve()` runs `anyio.run(run_stdio_repaired)` instead of
+      `server.run()`. No SDK types monkeypatched — relies only on stable public
+      message shapes.
+[x] 9.4. **Tests** (`tests/test_tolerant.py`, 17 cases). Pure-function units for
+      each offender + the garbage guard, the message router, and
+      `format_validation_error`; plus two honest raw-stdio e2e cases (stringified
+      args repaired → tool runs; unrepairable args → actionable -32700). Full
+      suite 204 passed / 1 skipped; ruff + mypy clean.

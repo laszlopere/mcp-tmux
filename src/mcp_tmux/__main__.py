@@ -14,10 +14,15 @@ from .register import DEFAULT_NAME, DEFAULT_SCOPE, register, unregister
 
 
 def _serve() -> None:
+    import anyio
+
     from .server import build_server
+    from .tolerant import run_stdio_repaired
 
     server = build_server()
-    server.run()  # stdio transport by default
+    # Like server.run() (stdio), but interposes the read stream to repair
+    # LLM-mangled tool-call `arguments` before strict validation rejects them.
+    anyio.run(lambda: run_stdio_repaired(server))
 
 
 def main() -> None:
