@@ -101,8 +101,10 @@ class TmuxRunner:
 
     async def _exec(self, argv: list[str], timeout: float) -> TmuxResult:
         try:
+            # Our stdin is the MCP stdio channel: keep ssh (and its ControlMaster) off it.
             proc = await asyncio.create_subprocess_exec(
                 *argv,
+                stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
