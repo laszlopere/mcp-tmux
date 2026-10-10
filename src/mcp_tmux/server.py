@@ -1,16 +1,16 @@
-"""FastMCP server assembly for mcp-tmux."""
+"""MCPServer assembly for mcp-tmux."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
-from . import resources
+from . import __version__, resources
 from .config import load_config
 from .runner import TmuxRunner
-from .tolerant import TolerantFastMCP
+from .tolerant import TolerantMCPServer
 from .tools import register_all
 from .toolsets import resolve_enabled, select_toolsets
 
@@ -42,11 +42,13 @@ keybindings, copymode, clients, stream.
 """
 
 
-def build_server(config: dict[str, Any] | None = None, config_path: Path | None = None) -> FastMCP:
-    """Construct and fully wire the FastMCP server."""
+def build_server(
+    config: dict[str, Any] | None = None, config_path: Path | None = None
+) -> MCPServer:
+    """Construct and fully wire the MCP server."""
     cfg = config if config is not None else load_config(config_path)
     runner = TmuxRunner(cfg)
-    mcp = TolerantFastMCP("tmux", instructions=INSTRUCTIONS)
+    mcp = TolerantMCPServer("tmux", instructions=INSTRUCTIONS, version=__version__)
     enabled = resolve_enabled(select_toolsets(cfg))
     register_all(mcp, runner, enabled)
     resources.register(mcp, runner)

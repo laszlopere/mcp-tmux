@@ -32,7 +32,7 @@ async def runner():
 
 
 def _tool_json(res):
-    payload = res[0] if isinstance(res, tuple) else res
+    payload = res.content
     return json.loads(payload[0].text)
 
 
@@ -65,8 +65,8 @@ async def test_clear_history_is_destructive(runner):
     tools = {t.name: t for t in mcp._tool_manager.list_tools()}
     ann = tools["tmux_clear_history"].annotations
     assert ann is not None
-    assert ann.readOnlyHint is False
-    assert ann.destructiveHint is True
+    assert ann.read_only_hint is False
+    assert ann.destructive_hint is True
 
 
 async def _current_command(runner, pane: str) -> str:
@@ -199,7 +199,7 @@ async def test_unset_environment(runner):
 async def test_show_environment_is_read_only(runner):
     mcp = build_server(config=CONFIG)
     tools = {t.name: t for t in mcp._tool_manager.list_tools()}
-    assert tools["tmux_show_environment"].annotations.readOnlyHint is True
+    assert tools["tmux_show_environment"].annotations.read_only_hint is True
 
 
 async def test_new_session_attach_or_create_is_idempotent(runner):

@@ -32,7 +32,7 @@ async def runner():
 
 
 def _tool_json(res):
-    payload = res[0] if isinstance(res, tuple) else res
+    payload = res.content
     return json.loads(payload[0].text)
 
 
@@ -163,7 +163,7 @@ async def test_target_aware_resource_local(runner):
     mcp = build_server(config=CONFIG)
     await runner.run_checked(["new-session", "-d", "-s", "restest"])
     res = await mcp.read_resource("tmux://local/sessions")
-    payload = res[0] if isinstance(res, (list, tuple)) else res
+    payload = next(iter(res))
     data = json.loads(payload.content)
     assert data["target"] == "local"
     assert any(s["name"] == "restest" for s in data["sessions"])

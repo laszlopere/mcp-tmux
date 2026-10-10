@@ -189,7 +189,7 @@ CONFIG = {
 def _tool_json(res):
     import json
 
-    payload = res[0] if isinstance(res, tuple) else res
+    payload = res.content
     return json.loads(payload[0].text)
 
 

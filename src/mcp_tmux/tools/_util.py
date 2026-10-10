@@ -3,14 +3,14 @@
 Applied once after all tools are registered. Rather than threading annotation
 flags through 30+ decorators, we tag tools by name here and wrap each tool's
 function so a :class:`~mcp_tmux.runner.TmuxError` (or a validation ``ValueError``)
-becomes a clean FastMCP ``ToolError`` instead of leaking a traceback.
+becomes a clean MCPServer ``ToolError`` instead of leaking a traceback.
 """
 
 from __future__ import annotations
 
 import functools
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from ..runner import TmuxError
@@ -104,10 +104,10 @@ def finalize_tools(mcp) -> None:
     for tool in mcp._tool_manager.list_tools():
         _set(tool, "fn", _wrap_errors(tool.fn))
         if tool.name in READ_ONLY:
-            _set(tool, "annotations", ToolAnnotations(readOnlyHint=True))
+            _set(tool, "annotations", ToolAnnotations(read_only_hint=True))
         elif tool.name in DESTRUCTIVE:
             _set(
                 tool,
                 "annotations",
-                ToolAnnotations(readOnlyHint=False, destructiveHint=True),
+                ToolAnnotations(read_only_hint=False, destructive_hint=True),
             )

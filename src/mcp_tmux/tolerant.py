@@ -13,7 +13,7 @@ Two fixes live here, at the two layers where the failures happen:
   ``ClientRequest`` validation (the only place those bytes are still a repairable
   string). Unrepairable junk gets an actionable ``-32700`` reply instead of a
   bare protocol error.
-* :class:`TolerantFastMCP` reshapes FastMCP's per-tool pydantic ``ValidationError``
+* :class:`TolerantMCPServer` reshapes MCPServer's per-tool pydantic ``ValidationError``
   (well-formed JSON, wrong shape) into a plain-English message naming the field
   and the expected-vs-received type, so the model self-corrects in one turn.
 
@@ -23,21 +23,20 @@ No SDK types are monkeypatched; this relies only on stable public message shapes
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
 from typing import Any
 
 import anyio
 from json_repair import loads as repair_loads
-from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver import Context, MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.stdio import stdio_server
 from mcp.shared.message import SessionMessage
 from mcp.types import (
     PARSE_ERROR,
-    ContentBlock,
+    CallToolResult,
     ErrorData,
+    InputRequiredResult,
     JSONRPCError,
-    JSONRPCMessage,
     JSONRPCRequest,
     RequestId,
 )
@@ -76,7 +75,7 @@ def _repair_message(message: SessionMessage) -> SessionMessage:
     tools/call request carrying a string ``arguments`` field, or when the blob
     cannot be repaired into an object (left for :func:`parse_error_reply`).
     """
-    root = message.message.root
+    root = message.message
     if not isinstance(root, JSONRPCRequest) or root.method != "tools/call":
         return message
     params = root.params
@@ -86,13 +85,13 @@ def _repair_message(message: SessionMessage) -> SessionMessage:
     if not isinstance(fixed, dict):
         return message
     new_root = root.model_copy(update={"params": {**params, "arguments": fixed}})
-    return SessionMessage(message=JSONRPCMessage(new_root), metadata=message.metadata)
+    return SessionMessage(message=new_root, metadata=message.metadata)
 
 
 def _needs_parse_error(message: SessionMessage) -> RequestId | None:
     """Return the request id if this is a tools/call whose ``arguments`` is an
     unrepairable JSON string, else ``None``."""
-    root = message.message.root
+    root = message.message
     if not isinstance(root, JSONRPCRequest) or root.method != "tools/call":
         return None
     params = root.params
@@ -113,11 +112,11 @@ def parse_error_reply(request_id: RequestId, tool_name: str | None) -> SessionMe
         "around keys/values."
     )
     err = JSONRPCError(jsonrpc="2.0", id=request_id, error=ErrorData(code=PARSE_ERROR, message=msg))
-    return SessionMessage(message=JSONRPCMessage(err))
+    return SessionMessage(message=err)
 
 
 def _tool_name(message: SessionMessage) -> str | None:
-    root = message.message.root
+    root = message.message
     if isinstance(root, JSONRPCRequest) and isinstance(root.params, dict):
         name = root.params.get("name")
         if isinstance(name, str):
@@ -125,10 +124,10 @@ def _tool_name(message: SessionMessage) -> str | None:
     return None
 
 
-async def run_stdio_repaired(mcp: FastMCP) -> None:
+async def run_stdio_repaired(mcp: MCPServer) -> None:
     """Run ``mcp`` over stdio, repairing mangled tool-call ``arguments`` inbound.
 
-    Replaces ``FastMCP.run()``'s stdio path with one that interposes the read
+    Replaces ``MCPServer.run()``'s stdio path with one that interposes the read
     stream: each ``tools/call`` message is repaired before the session's strict
     validation sees it. Unrepairable blobs are answered directly with an
     actionable parse error and never forwarded, so the session never sees that id.
@@ -151,16 +150,16 @@ async def run_stdio_repaired(mcp: FastMCP) -> None:
 
         async with anyio.create_task_group() as tg, recv:
             tg.start_soon(pump)
-            await mcp._mcp_server.run(
+            await mcp._lowlevel_server.run(
                 recv,
                 write_stream,
-                mcp._mcp_server.create_initialization_options(),
+                mcp._lowlevel_server.create_initialization_options(),
             )
             tg.cancel_scope.cancel()
 
 
 # --------------------------------------------------------------------------- #
-# Fix B — reshape FastMCP's per-tool pydantic ValidationError into plain text   #
+# Fix B — reshape MCPServer's per-tool pydantic ValidationError into plain text #
 # --------------------------------------------------------------------------- #
 
 _EXPECTED = {
@@ -199,8 +198,8 @@ def format_validation_error(tool_name: str, exc: ValidationError) -> str:
     return f"Invalid arguments for tool {tool_name!r}: {'; '.join(parts)}."
 
 
-class TolerantFastMCP(FastMCP):
-    """FastMCP whose tool-call validation errors read as plain English.
+class TolerantMCPServer(MCPServer):
+    """MCPServer whose tool-call validation errors read as plain English.
 
     Only pydantic ``ValidationError``s (wrong-shape arguments) are rewritten;
     errors raised from inside a tool body have a different ``__cause__`` and pass
@@ -208,10 +207,10 @@ class TolerantFastMCP(FastMCP):
     """
 
     async def call_tool(
-        self, name: str, arguments: dict[str, Any]
-    ) -> Sequence[ContentBlock] | dict[str, Any]:
+        self, name: str, arguments: dict[str, Any], context: Context[Any, Any] | None = None
+    ) -> CallToolResult | InputRequiredResult:
         try:
-            return await super().call_tool(name, arguments)
+            return await super().call_tool(name, arguments, context)
         except ToolError as exc:
             if isinstance(exc.__cause__, ValidationError):
                 raise ToolError(format_validation_error(name, exc.__cause__)) from exc.__cause__

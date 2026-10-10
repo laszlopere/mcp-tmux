@@ -15,8 +15,8 @@ are not re-covered here.
 from __future__ import annotations
 
 import pytest
-from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 
 from mcp_tmux.capabilities import Capabilities
 from mcp_tmux.formats import FIELD_SEP as SEP
@@ -83,7 +83,7 @@ class FakeRunner:
 
 def _tools(fr: FakeRunner) -> dict:
     """Register all tools against a fake runner; return name -> wrapped fn."""
-    mcp = FastMCP("tmux")
+    mcp = MCPServer("tmux")
     register_all(mcp, fr, resolve_enabled(["all"]))
     return {t.name: t.fn for t in mcp._tool_manager.list_tools()}
 

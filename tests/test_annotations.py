@@ -1,5 +1,5 @@
 import pytest
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from mcp_tmux.runner import TmuxError
 from mcp_tmux.server import build_server
@@ -13,16 +13,16 @@ def _tools_by_name(mcp):
 def test_read_only_tools_annotated():
     mcp = build_server(config={"defaults": {}, "targets": {}})
     tools = _tools_by_name(mcp)
-    assert tools["tmux_capture_pane"].annotations.readOnlyHint is True
-    assert tools["tmux_list"].annotations.readOnlyHint is True
+    assert tools["tmux_capture_pane"].annotations.read_only_hint is True
+    assert tools["tmux_list"].annotations.read_only_hint is True
 
 
 def test_destructive_tools_annotated():
     mcp = build_server(config={"defaults": {}, "targets": {}})
     tools = _tools_by_name(mcp)
     ann = tools["tmux_kill"].annotations
-    assert ann.destructiveHint is True
-    assert ann.readOnlyHint is False
+    assert ann.destructive_hint is True
+    assert ann.read_only_hint is False
 
 
 def test_non_annotated_tool_has_no_hints():

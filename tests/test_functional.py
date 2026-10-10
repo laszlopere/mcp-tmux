@@ -42,12 +42,12 @@ REMOTE_SESSION = os.environ.get("MCP_TMUX_FUNC_SESSION")
 
 
 def _js(res):
-    payload = res[0] if isinstance(res, tuple) else res
+    payload = res.content
     return json.loads(payload[0].text)
 
 
 def _resource_json(res):
-    payload = res[0] if isinstance(res, (list, tuple)) else res
+    payload = next(iter(res))
     return json.loads(payload.content)
 
 

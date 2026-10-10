@@ -15,7 +15,7 @@ import sys
 
 import pytest
 from mcp.shared.message import SessionMessage
-from mcp.types import JSONRPCMessage, JSONRPCRequest
+from mcp.types import JSONRPCRequest
 from pydantic import BaseModel, ValidationError
 
 from mcp_tmux.tolerant import (
@@ -76,13 +76,13 @@ def _call_msg(arguments, *, name="tmux_list_targets", req_id=1):
         method="tools/call",
         params={"name": name, "arguments": arguments},
     )
-    return SessionMessage(message=JSONRPCMessage(root))
+    return SessionMessage(message=root)
 
 
 def test_repair_message_rewrites_stringified_arguments():
     msg = _call_msg('{"target": "local"}')
     repaired = _repair_message(msg)
-    root = repaired.message.root
+    root = repaired.message
     assert isinstance(root, JSONRPCRequest)
     assert root.params["arguments"] == {"target": "local"}
 
@@ -94,7 +94,7 @@ def test_repair_message_leaves_object_arguments_untouched():
 
 def test_repair_message_ignores_non_tool_calls():
     root = JSONRPCRequest(jsonrpc="2.0", id=1, method="tools/list", params={})
-    msg = SessionMessage(message=JSONRPCMessage(root))
+    msg = SessionMessage(message=root)
     assert _repair_message(msg) is msg
 
 
@@ -106,7 +106,7 @@ def test_needs_parse_error_only_for_unrepairable_strings():
 
 def test_parse_error_reply_is_actionable_and_clean():
     reply = parse_error_reply(7, "tmux_list_targets")
-    err = reply.message.root.error
+    err = reply.message.error
     assert err.code == -32700
     assert "tmux_list_targets" in err.message
     assert "JSON object" in err.message

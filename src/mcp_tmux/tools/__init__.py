@@ -1,4 +1,4 @@
-"""Tool registration for the FastMCP server."""
+"""Tool registration for the MCP server."""
 
 from __future__ import annotations
 

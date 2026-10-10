@@ -86,7 +86,7 @@ async def test_capture_trim_via_tool(runner):
     content = ""
     for _ in range(20):
         res = await mcp.call_tool("tmux_capture_pane", {"target_pane": "trimtest"})
-        payload = res[0] if isinstance(res, tuple) else res
+        payload = res.content
         content = json.loads(payload[0].text)["content"]
         if "trimmed" in content:
             break
@@ -99,7 +99,7 @@ async def test_capture_trim_via_tool(runner):
 
     # Untrimmed keeps the padding (ends with blank lines).
     res = await mcp.call_tool("tmux_capture_pane", {"target_pane": "trimtest", "trim": False})
-    payload = res[0] if isinstance(res, tuple) else res
+    payload = res.content
     raw = json.loads(payload[0].text)["content"]
     assert raw.endswith("\n")
 
@@ -107,7 +107,7 @@ async def test_capture_trim_via_tool(runner):
 
 
 def _tool_json(res):
-    payload = res[0] if isinstance(res, tuple) else res
+    payload = res.content
     import json
 
     return json.loads(payload[0].text)
