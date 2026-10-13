@@ -10,6 +10,7 @@ Run from the repo root:
     .venv/bin/python scripts/bench_transport.py --save baseline.json
     .venv/bin/python scripts/bench_transport.py --compare baseline.json
     .venv/bin/python scripts/bench_transport.py --host pipnode   # also a real host
+    .venv/bin/python scripts/bench_transport.py --transport control
 """
 
 from __future__ import annotations
@@ -126,6 +127,9 @@ async def main() -> int:
     ap.add_argument("--runs", type=int, default=10, help="tmux_run round trips per target")
     ap.add_argument("--host", help="also time this real ssh destination or ~/.ssh alias")
     ap.add_argument("--no-loopback", action="store_true", help="skip the loopback sshd")
+    ap.add_argument(
+        "--transport", choices=["oneshot", "control"], default="oneshot", help="command transport"
+    )
     ap.add_argument("--save", type=Path, help="write results as JSON to this file")
     ap.add_argument("--compare", type=Path, help="show speedup against a saved JSON file")
     args = ap.parse_args()
@@ -135,7 +139,7 @@ async def main() -> int:
         baseline = json.loads(args.compare.read_text())["results"]
 
     config: dict[str, Any] = {
-        "defaults": {"socket_name": SOCKET, "timeout": 30},
+        "defaults": {"socket_name": SOCKET, "timeout": 30, "transport": args.transport},
         "targets": {},
         "toolsets": ["all"],
     }
@@ -166,6 +170,7 @@ async def main() -> int:
             "n": args.n,
             "runs": args.runs,
             "host": args.host,
+            "transport": args.transport,
         }
         args.save.write_text(json.dumps({"meta": meta, "results": results}, indent=2) + "\n")
         print(f"saved {args.save}", file=sys.stderr)
