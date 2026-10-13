@@ -280,19 +280,20 @@ async def test_waits_are_woken_by_pane_output(runner):
         "tmux_send_keys",
         {
             "target_pane": "wo",
-            "text": "for i in 1 2 3; do echo t$i; sleep 0.2; done",
+            "text": "for i in 1 2 3 4 5; do echo t$i; sleep 0.1; done",
             "enter": True,
         },
     )
     r = _json(
         await mcp.call_tool(
             "tmux_wait_for_idle",
-            {"target_pane": "wo", "idle_seconds": 0.5, "timeout": 10, "poll_interval": 60},
+            {"target_pane": "wo", "idle_seconds": 0.3, "timeout": 10, "poll_interval": 60},
         )
     )
     assert r["idle"] is True
-    assert 0.9 <= r["elapsed"] < 5
-    assert "t3" in r["content"]
+    # Ticking for 0.4s+ then 0.3s quiet; ignoring the ticks would take ~0.3s.
+    assert 0.6 <= r["elapsed"] < 5
+    assert "t5" in r["content"]
 
     # The waits' read-only clients detached again; the command clients remain.
     clients = await runner.run_checked(["list-clients", "-F", "#{client_readonly}"])

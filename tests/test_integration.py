@@ -141,7 +141,12 @@ async def test_wait_for_text_timeout(runner):
     await runner.run_checked(["new-session", "-d", "-s", "wtimeout"])
     res = await mcp.call_tool(
         "tmux_wait_for_text",
-        {"target_pane": "wtimeout", "pattern": "NEVER-APPEARS", "timeout": 0.6},
+        {
+            "target_pane": "wtimeout",
+            "pattern": "NEVER-APPEARS",
+            "timeout": 0.3,
+            "poll_interval": 0.1,
+        },
     )
     data = _tool_json(res)
     assert data["matched"] is False
@@ -207,8 +212,11 @@ async def test_run_timeout_while_running_then_recovers(runner):
 
     mcp = build_server(config=CONFIG)
     await runner.run_checked(["new-session", "-d", "-s", "runto"])
+    # Let the shell start, so the C-c below meets the running command and not
+    # a shell still starting up (the short timeout would not cover that).
+    await _run(mcp, "runto", "true")
 
-    r = await _run(mcp, "runto", "sleep 30", timeout=1)
+    r = await _run(mcp, "runto", "sleep 30", timeout=0.5)
     assert r["completed"] is False
     assert r["exit_code"] is None
     assert "timed out" in r["error"]
@@ -259,9 +267,9 @@ async def test_wait_for_idle_on_quiet_pane(runner):
     await runner.run_checked(["new-session", "-d", "-s", "idleq"])
     await _run(mcp, "idleq", "echo QUIET-PANE")
 
-    r = await _wait_idle(mcp, "idleq", idle_seconds=0.5, timeout=10)
+    r = await _wait_idle(mcp, "idleq", idle_seconds=0.25, timeout=10)
     assert r["idle"] is True
-    assert 0.5 <= r["elapsed"] < 10
+    assert 0.25 <= r["elapsed"] < 10
     assert "QUIET-PANE" in r["content"]
 
     await runner.run_checked(["kill-session", "-t", "idleq"])
@@ -275,14 +283,15 @@ async def test_wait_for_idle_after_output_settles(runner):
     await _run(mcp, "idles", "true")  # prompt is up
 
     await runner.run_checked(
-        ["send-keys", "-t", "idles", "-l", "for i in 1 2 3 4 5; do echo tick$i; sleep 0.3; done"]
+        ["send-keys", "-t", "idles", "-l", "for i in $(seq 8); do echo tick$i; sleep 0.1; done"]
     )
     await runner.run_checked(["send-keys", "-t", "idles", "Enter"])
-    r = await _wait_idle(mcp, "idles", idle_seconds=0.8, timeout=15)
+    r = await _wait_idle(mcp, "idles", idle_seconds=0.5, timeout=15, poll_interval=0.1)
     assert r["idle"] is True
-    # Not idle while ticking: the last tick arrives about 1.2s after the first.
-    assert r["elapsed"] >= 1.5
-    assert "tick5" in r["content"]
+    # Not idle while ticking: the last tick arrives at least 0.7s after the
+    # first, then 0.5s of quiet. Ignoring the ticks would return after ~0.5s.
+    assert r["elapsed"] >= 1.0
+    assert "tick8" in r["content"]
 
     await runner.run_checked(["kill-session", "-t", "idles"])
 
@@ -298,9 +307,10 @@ async def test_wait_for_idle_times_out_on_busy_pane(runner):
         ["send-keys", "-t", "idleb", "-l", "while :; do date +%s%N; sleep 0.1; done"]
     )
     await runner.run_checked(["send-keys", "-t", "idleb", "Enter"])
-    r = await _wait_idle(mcp, "idleb", idle_seconds=1.0, timeout=2)
+    # The timeout spans two idle windows, so a missed tick can't pass for idle.
+    r = await _wait_idle(mcp, "idleb", idle_seconds=0.5, timeout=1, poll_interval=0.1)
     assert r["idle"] is False
-    assert 2 <= r["elapsed"] < 6
+    assert 1 <= r["elapsed"] < 5
 
     await runner.run_checked(["send-keys", "-t", "idleb", "C-c"])
     await runner.run_checked(["kill-session", "-t", "idleb"])
@@ -342,14 +352,14 @@ async def test_run_completion_is_signalled_not_polled(runner):
             "tmux_run",
             {
                 "target_pane": "runsig",
-                "command": "sleep 0.5; echo slept",
+                "command": "sleep 0.2; echo slept",
                 "timeout": 10,
                 "poll_interval": 60,
             },
         )
     )
     assert (r["completed"], r["exit_code"], r["output"]) == (True, 0, "slept")
-    assert 0.5 <= r["elapsed"] < 5
+    assert 0.2 <= r["elapsed"] < 5
 
     await runner.run_checked(["kill-session", "-t", "runsig"])
 
@@ -364,7 +374,12 @@ async def test_run_polls_when_the_shell_cannot_signal(runner):
     r = _tool_json(
         await mcp.call_tool(
             "tmux_run",
-            {"target_pane": "runpoll", "command": "echo polled; false", "timeout": 10},
+            {
+                "target_pane": "runpoll",
+                "command": "echo polled; false",
+                "timeout": 10,
+                "poll_interval": 0.05,
+            },
         )
     )
     assert (r["completed"], r["exit_code"], r["output"]) == (True, 1, "polled")
