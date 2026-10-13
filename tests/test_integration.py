@@ -327,3 +327,14 @@ async def test_batch_stops_at_first_failing_command(runner):
     assert "ran" not in result.stdout
     ok = await runner.run_checked(["has-session", "-t", "bat"], ["display-message", "-p", "ran"])
     assert ok.strip() == "ran"
+
+
+async def test_run_output_without_trailing_newline(runner):
+    from mcp_tmux.server import build_server
+
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "runnl"])
+    r = await _run(mcp, "runnl", "printf 'a\\nno-newline'")
+    assert (r["completed"], r["exit_code"]) == (True, 0)
+    assert r["output"].splitlines() == ["a", "no-newline"]
+    await runner.run_checked(["kill-session", "-t", "runnl"])

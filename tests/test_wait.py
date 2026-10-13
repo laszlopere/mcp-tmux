@@ -67,3 +67,25 @@ def test_extract_end_marker_must_start_the_line():
 def test_extract_end_needs_exit_code():
     content = "\n".join([BEG, END, f"{END} x"])
     assert _extract_run_output(content, BEG, END) is None
+
+
+def test_extract_beg_joined_onto_the_echoed_command_line():
+    # The command line filled the pane width exactly, so capture-pane -J
+    # joined the next row (the BEG output) onto it.
+    content = "\n".join(
+        [
+            f"$ printf '%s\\n' {BEG}; false; printf '%s %d\\n' {END} \"$?\"; x{BEG}",
+            f"{END} 1",
+        ]
+    )
+    assert _extract_run_output(content, BEG, END) == (1, "")
+
+
+def test_extract_output_without_trailing_newline():
+    content = "\n".join([BEG, "line", f"no-newline{END} 0", "$ "])
+    assert _extract_run_output(content, BEG, END) == (0, "line\nno-newline")
+
+
+def test_extract_takes_the_last_end_marker():
+    content = "\n".join([BEG, f"echo {END} 0", "more", f"{END} 5"])
+    assert _extract_run_output(content, BEG, END) == (5, f"echo {END} 0\nmore")

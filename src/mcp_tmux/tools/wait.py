@@ -26,23 +26,28 @@ DEFAULT_POLL = 0.25
 def _extract_run_output(content: str, beg: str, end: str) -> tuple[int, str] | None:
     """Pure parser for tmux_run captures.
 
-    Looks for a line that is exactly the BEG marker, then a later line of the
-    form ``<END> <exit_code>``. Returns ``(exit_code, output_between)`` or None
-    if the bracket isn't complete yet. The command's own echoed input line is
-    ignored because it never equals the bare marker.
+    Looks for a line ending in the BEG marker, then the last later line ending
+    in ``<END> <exit_code>``. Returns ``(exit_code, output_between)`` or None
+    if the bracket isn't complete yet.
+
+    A marker needn't start its line: ``capture-pane -J`` joins a row that
+    wrapped at exactly the pane width with the next one, and output without a
+    trailing newline runs into END; text before END is output. The echoed
+    command line never ends in a marker (each is followed by ``;`` there), and
+    taking the last END skips marker-like text inside the output.
     """
-    end_re = re.compile(rf"^{re.escape(end)} (-?\d+)\s*$")
+    end_re = re.compile(rf"{re.escape(end)} (-?\d+)\s*$")
     lines = content.split("\n")
-    beg_idx: int | None = None
-    for i, ln in enumerate(lines):
-        s = ln.strip()
-        if beg_idx is None:
-            if s == beg:
-                beg_idx = i
-            continue
-        m = end_re.match(s)
+    beg_idx = next((i for i, ln in enumerate(lines) if ln.rstrip().endswith(beg)), None)
+    if beg_idx is None:
+        return None
+    for i in range(len(lines) - 1, beg_idx, -1):
+        m = end_re.search(lines[i])
         if m:
-            return int(m.group(1)), "\n".join(lines[beg_idx + 1 : i])
+            output = [*lines[beg_idx + 1 : i], lines[i][: m.start()]]
+            if not output[-1].strip():
+                output.pop()
+            return int(m.group(1)), "\n".join(output)
     return None
 
 
