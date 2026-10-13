@@ -1,0 +1,62 @@
+mcp-tmux: TODO
+
+Completed items are in TODO-DONE.txt.
+
+4. [ ] Quality, packaging, CI.
+   [x] 4.1. Unit tests for the tools layer (argv assembly via a fake runner).
+   [ ] 4.2. tmux version-matrix CI: run the integration tests in containers
+      against tmux 1.8 / 2.x / 3.x to prove the 1.8+ claim and catch
+      format-variable and flag drift.
+   [x] 4.3. Lint and types: ruff and mypy.
+   [x] 4.4. Packaging: `uv.lock`, sdist and wheel builds.
+   [x] 4.5. CONTRIBUTING and config docs, including named-target profiles.
+   [x] 4.6. Publish to PyPI.
+
+7. [ ] Toolsets: a lean always-on `core` plus opt-in groups, so a session
+      doesn't pay for the whole tool surface.
+   [x] 7.1. Static toolsets selected via the `toolsets` config key or
+      `MCP_TMUX_TOOLSETS`.
+   [ ] 7.2. Optional dynamic mode: a `tmux_enable_toolset(name)` meta-tool that
+      loads a toolset mid-session. Only if static config proves too rigid.
+
+10. [ ] Speed up command transport, with SSH covered by the always-on tests.
+   [ ] 10.1. Loopback SSH test fixture: a session-scoped pytest fixture starts an
+      unprivileged `sshd` on 127.0.0.1 at a free port, using a throwaway host
+      key, client key, `authorized_keys` and `known_hosts` in a temp dir. It
+      exposes a target whose `ssh_options` point at that port, key and
+      known_hosts. No external hosts and no changes to `~/.ssh`.
+   [ ] 10.2. Run the SSH versions on every `pytest` run: parametrize the
+      functional workflow and the integration/control-mode suites over
+      `local` and `loopback-ssh`, on isolated `-L` sockets. A missing `sshd`
+      fails the run with an install hint instead of skipping. CI installs
+      `openssh-server` if the runner lacks it.
+   [ ] 10.3. Gaps in coverage: `tmux_run` with a non-zero exit, a timeout while
+      the command is still running, and output that contains the marker text;
+      argv tests for the default SSH options (injected, overridable by a
+      profile's `ssh_options`, absent for local targets).
+   [ ] 10.4. Timing script (outside the test suite): N `capture-pane` calls plus
+      a `tmux_run` round trip, local and loopback SSH (optionally a real host);
+      record a baseline before 10.5–10.8 and compare after each one.
+   [ ] 10.5. SSH multiplexing by default: add `ControlMaster=auto`,
+      `ControlPersist` and a private `ControlPath` to remote argv unless the
+      user's options already set them.
+   [ ] 10.6. Batch tmux commands: combine multi-step tools into one invocation
+      with `\;` (e.g. send-keys followed by capture-pane).
+   [ ] 10.7. Event-driven waits: `tmux_run` signals completion with
+      `tmux wait-for -S <channel>` and blocks on `tmux wait-for <channel>`
+      instead of polling `capture-pane`; the exit code still comes from the
+      marker.
+   [ ] 10.8. Control mode as the command transport: one persistent `tmux -C`
+      connection per target (`attach -f no-output,ignore-size`, tmux 3.2+)
+      carries all commands via `%begin/%end/%error` framing, with reconnect
+      after server death, safe concurrent calls, and a fall back to one-shot
+      commands on older tmux. Wait tools use `%output` notifications instead
+      of polling.
+
+11. [ ] Notes and decisions to revisit.
+   [x] 11.1. Decide whether `send_keys` / `run` need a confirm or dry-run flag
+      for attached sessions.
+   [x] 11.2. Document that `$(...)` in `send_keys` text is evaluated by the
+      pane's shell, which is remote for SSH targets.
+   [ ] 11.3. The format field separator is TAB; revisit if a real value ever
+      contains a tab.
