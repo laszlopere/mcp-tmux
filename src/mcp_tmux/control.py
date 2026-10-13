@@ -409,19 +409,25 @@ class ControlConnection:
         }
 
     async def close(self) -> None:
-        """Detach the control client (does not kill the session) and clean up."""
+        """Detach the control client (does not kill the session) and clean up.
+
+        Ending stdin makes tmux drop the client. A kill alone wouldn't over SSH:
+        the multiplexing master keeps the session, and with it the remote
+        client, open (and ``proc.wait()`` would wait for that, too).
+        """
         self._closing = True  # suppress auto-reconnect from the reader loop
         self.alive = False
-        if self._proc and self._proc.returncode is None:
-            try:
-                self._proc.terminate()
-            except ProcessLookupError:  # pragma: no cover - already gone
-                pass
-            try:
-                await asyncio.wait_for(self._proc.wait(), 5)
-            except asyncio.TimeoutError:  # pragma: no cover - defensive
-                self._proc.kill()
-                await self._proc.wait()
+        proc = self._proc
+        if proc and proc.returncode is None:
+            if proc.stdin is not None:
+                proc.stdin.close()
+            deadline = time.monotonic() + 2
+            while proc.returncode is None and time.monotonic() < deadline:
+                await asyncio.sleep(0.005)
+            if proc.returncode is None:  # pragma: no cover - defensive
+                proc.kill()
+                while proc.returncode is None:
+                    await asyncio.sleep(0.005)
         for task in (self._reader, self._stderr_reader):
             if task:
                 task.cancel()
