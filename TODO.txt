@@ -39,7 +39,7 @@ Completed items are in TODO-DONE.txt.
       `ControlPersist` and a private `ControlPath` to remote argv unless the
       user's options already set them. Argv tests: injected, overridable by a
       profile's `ssh_options`, absent for local targets.
-   [ ] 10.6. Batch tmux commands: combine multi-step tools into one invocation
+   [x] 10.6. Batch tmux commands: combine multi-step tools into one invocation
       with `\;` (e.g. send-keys followed by capture-pane).
    [ ] 10.7. Event-driven waits: `tmux_run` signals completion with
       `tmux wait-for -S <channel>` and blocks on `tmux wait-for <channel>`

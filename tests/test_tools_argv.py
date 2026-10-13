@@ -20,7 +20,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 
 from mcp_tmux.capabilities import Capabilities
 from mcp_tmux.formats import FIELD_SEP as SEP
-from mcp_tmux.runner import TmuxResult
+from mcp_tmux.runner import TmuxResult, join_commands
 from mcp_tmux.tools import register_all
 from mcp_tmux.toolsets import resolve_enabled
 
@@ -46,12 +46,16 @@ class FakeRunner:
         self.calls.append(("capabilities", None, target))
         return self._caps
 
-    async def run(self, tmux_args, *, target=None, timeout=None):
-        self.calls.append(("run", list(tmux_args), target))
+    @staticmethod
+    def _joined(commands, verbatim):
+        return list(commands[0]) if verbatim else join_commands(commands)
+
+    async def run(self, *commands, target=None, timeout=None, verbatim=False):
+        self.calls.append(("run", self._joined(commands, verbatim), target))
         return self.run_result
 
-    async def run_checked(self, tmux_args, *, target=None, timeout=None):
-        self.calls.append(("run_checked", list(tmux_args), target))
+    async def run_checked(self, *commands, target=None, timeout=None, verbatim=False):
+        self.calls.append(("run_checked", self._joined(commands, verbatim), target))
         return self.output
 
     async def list_records(self, list_cmd, fields, *, target=None):
@@ -97,6 +101,12 @@ async def test_command_passes_args_verbatim():
     fr = FakeRunner()
     await _tools(fr)["tmux_command"](args=["new-window", "-n", "logs"], target="pipnode")
     assert fr.calls[-1] == ("run", ["new-window", "-n", "logs"], "pipnode")
+
+
+async def test_command_leaves_semicolons_to_tmux():
+    fr = FakeRunner()
+    await _tools(fr)["tmux_command"](args=["kill-pane", "-t", "%1", ";", "x;", "y\\;"])
+    assert fr.calls[-1] == ("run", ["kill-pane", "-t", "%1", ";", "x;", "y\\;"], None)
 
 
 async def test_query_builds_display_message():
@@ -188,18 +198,26 @@ async def test_new_session_env_gated_on_old_tmux():
 
 
 async def test_new_session_attach_or_create_reuses_existing():
-    fr = FakeRunner(run_ok=True, output=f"$7{SEP}dev")
+    fr = FakeRunner()
+    fr.run_result = TmuxResult(f"$7{SEP}dev", "", 0)
     res = await _tools(fr)["tmux_new_session"](name="dev", attach_or_create=True)
-    # has-session probe via run, then display-message via run_checked; no new-session.
-    assert fr.calls[0] == ("run", ["has-session", "-t", "dev"], None)
-    assert fr.checked == [
-        [
-            "display-message",
-            "-p",
-            "-t",
-            "dev",
-            f"#{{session_id}}{SEP}#{{session_name}}",
-        ]
+    # One unchecked call: has-session, then display-message if it exists.
+    assert fr.calls == [
+        (
+            "run",
+            [
+                "has-session",
+                "-t",
+                "dev",
+                ";",
+                "display-message",
+                "-p",
+                "-t",
+                "dev",
+                f"#{{session_id}}{SEP}#{{session_name}}",
+            ],
+            None,
+        )
     ]
     assert not any("new-session" in a for a in fr.argvs)
     assert res == {"id": "$7", "name": "dev"}
@@ -362,8 +380,15 @@ async def test_send_keys_literal_text():
     fr = FakeRunner()
     await _tools(fr)["tmux_send_keys"](target_pane="%1", text="ls -la", enter=True)
     assert fr.checked == [
-        ["send-keys", "-t", "%1", "-l", "ls -la"],
-        ["send-keys", "-t", "%1", "Enter"],
+        ["send-keys", "-t", "%1", "-l", "ls -la", ";", "send-keys", "-t", "%1", "Enter"]
+    ]
+
+
+async def test_send_keys_text_ending_in_semicolon_is_escaped():
+    fr = FakeRunner()
+    await _tools(fr)["tmux_send_keys"](target_pane="%1", text="ls;", enter=True)
+    assert fr.checked == [
+        ["send-keys", "-t", "%1", "-l", "ls\\;", ";", "send-keys", "-t", "%1", "Enter"]
     ]
 
 
@@ -701,12 +726,8 @@ async def test_copy_mode_enter_and_exit():
 async def test_copy_scroll_repeats_command():
     fr = FakeRunner(version="2.4")
     res = await _tools(fr)["tmux_copy_scroll"](target_pane="%1", direction="page-up", amount=3)
-    assert fr.checked == [
-        ["copy-mode", "-t", "%1"],
-        ["send-keys", "-X", "-t", "%1", "page-up"],
-        ["send-keys", "-X", "-t", "%1", "page-up"],
-        ["send-keys", "-X", "-t", "%1", "page-up"],
-    ]
+    page_up = [";", "send-keys", "-X", "-t", "%1", "page-up"]
+    assert fr.checked == [["copy-mode", "-t", "%1", *page_up, *page_up, *page_up]]
     assert res == {"scrolled": "page-up", "amount": 3, "pane": "%1"}
 
 
@@ -714,8 +735,7 @@ async def test_copy_scroll_top_ignores_amount():
     fr = FakeRunner(version="2.4")
     res = await _tools(fr)["tmux_copy_scroll"](target_pane="%1", direction="top", amount=9)
     assert fr.checked == [
-        ["copy-mode", "-t", "%1"],
-        ["send-keys", "-X", "-t", "%1", "history-top"],
+        ["copy-mode", "-t", "%1", ";", "send-keys", "-X", "-t", "%1", "history-top"]
     ]
     assert res["amount"] == 1
 
@@ -730,8 +750,7 @@ async def test_copy_search_argv():
     fr = FakeRunner(version="2.4")
     await _tools(fr)["tmux_copy_search"](target_pane="%1", pattern="error", backward=True)
     assert fr.checked == [
-        ["copy-mode", "-t", "%1"],
-        ["send-keys", "-X", "-t", "%1", "search-backward", "error"],
+        ["copy-mode", "-t", "%1", ";", "send-keys", "-X", "-t", "%1", "search-backward", "error"]
     ]
 
 

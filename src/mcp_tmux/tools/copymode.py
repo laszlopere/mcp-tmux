@@ -105,10 +105,12 @@ def register(mcp, runner, enabled) -> None:
         if cmd is None:
             raise ValueError("direction must be one of: " + ", ".join(_SCROLL))
         await _require_X(runner, target)
-        await runner.run_checked(["copy-mode", "-t", target_pane], target=target)
         reps = 1 if direction in ("top", "bottom") else max(1, amount)
-        for _ in range(reps):
-            await runner.run_checked(["send-keys", "-X", "-t", target_pane, cmd], target=target)
+        await runner.run_checked(
+            ["copy-mode", "-t", target_pane],
+            *[["send-keys", "-X", "-t", target_pane, cmd]] * reps,
+            target=target,
+        )
         return {"scrolled": direction, "amount": reps, "pane": target_pane}
 
     @tool()
@@ -134,9 +136,10 @@ def register(mcp, runner, enabled) -> None:
         Returns {"searched": ...}.
         """
         await _require_X(runner, target)
-        await runner.run_checked(["copy-mode", "-t", target_pane], target=target)
         cmd = "search-backward" if backward else "search-forward"
         await runner.run_checked(
-            ["send-keys", "-X", "-t", target_pane, cmd, pattern], target=target
+            ["copy-mode", "-t", target_pane],
+            ["send-keys", "-X", "-t", target_pane, cmd, pattern],
+            target=target,
         )
         return {"searched": pattern, "backward": backward, "pane": target_pane}

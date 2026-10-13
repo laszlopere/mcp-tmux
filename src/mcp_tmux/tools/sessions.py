@@ -82,19 +82,20 @@ def register(mcp, runner, enabled) -> None:
         Returns the created (or existing) session's {"id", "name"}.
         """
         if attach_or_create and name:
-            exists = await runner.run(["has-session", "-t", name], target=target)
-            if exists.ok:
-                out = await runner.run_checked(
-                    [
-                        "display-message",
-                        "-p",
-                        "-t",
-                        name,
-                        f"#{{session_id}}{FIELD_SEP}#{{session_name}}",
-                    ],
-                    target=target,
-                )
-                rec = parse_records(out, ["id", "name"])
+            # display-message only runs if has-session succeeds.
+            existing = await runner.run(
+                ["has-session", "-t", name],
+                [
+                    "display-message",
+                    "-p",
+                    "-t",
+                    name,
+                    f"#{{session_id}}{FIELD_SEP}#{{session_name}}",
+                ],
+                target=target,
+            )
+            if existing.ok:
+                rec = parse_records(existing.stdout, ["id", "name"])
                 return rec[0] if rec else {"id": "", "name": name}
 
         args = ["new-session"]

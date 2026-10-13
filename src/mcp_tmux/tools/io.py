@@ -68,16 +68,15 @@ def register(mcp, runner, enabled) -> None:
             if literal:
                 args.append("-l")
             args.append(text)
-            await runner.run_checked(args, target=target)
         else:
             assert keys is not None  # exactly one of text/keys is set (checked above)
             args = ["send-keys", "-t", target_pane, *keys]
-            await runner.run_checked(args, target=target)
-
+        commands = [args]
         if enter:
-            # Enter is a key name, sent in its own (non-literal) call so it works
-            # regardless of the literal flag used above.
-            await runner.run_checked(["send-keys", "-t", target_pane, "Enter"], target=target)
+            # Enter is a key name, sent as its own (non-literal) command so it
+            # works regardless of the literal flag used above.
+            commands.append(["send-keys", "-t", target_pane, "Enter"])
+        await runner.run_checked(*commands, target=target)
         return {"sent": True, "pane": target_pane}
 
     @tool()

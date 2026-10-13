@@ -36,7 +36,9 @@ def register(mcp, runner, enabled) -> None:
         This is the universal escape hatch — it runs `tmux <args>` verbatim, so
         it can do anything the target's tmux supports. Pass the subcommand and
         its flags as a list, e.g. args=["new-window", "-t", "mysess", "-n",
-        "logs"]. Do NOT include the leading "tmux".
+        "logs"]. Do NOT include the leading "tmux". As on the command line, an
+        argument ";" (or one ending in ";") separates commands, so several run
+        in one call; end an argument with "\\;" for a literal trailing ";".
 
         Returns {"stdout", "stderr", "exit_code"}. Non-zero exit codes are
         returned, not raised, so you can inspect failures.
@@ -45,7 +47,7 @@ def register(mcp, runner, enabled) -> None:
         machine, a named profile from the config file, or an ad-hoc ssh
         destination like "user@host".
         """
-        result = await runner.run(args, target=target, timeout=timeout)
+        result = await runner.run(args, target=target, timeout=timeout, verbatim=True)
         return {
             "stdout": result.stdout,
             "stderr": result.stderr,

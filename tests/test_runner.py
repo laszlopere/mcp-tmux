@@ -2,7 +2,9 @@ import os
 
 import pytest
 
-from mcp_tmux.runner import TmuxError, TmuxRunner, _map_error
+from mcp_tmux.runner import TmuxError, TmuxRunner, _map_error, join_commands
+
+BS = chr(92)  # a backslash, spelled out to keep the escaping readable
 
 
 @pytest.fixture
@@ -83,3 +85,25 @@ def test_map_error_passes_tmux_message_through(stderr):
 
 def test_map_error_empty_stderr_reports_status():
     assert _map_error("", 3) == "tmux exited with status 3."
+
+
+def test_join_commands_single_command_unchanged():
+    assert join_commands((["send-keys", "-t", "%1", "a;b"],)) == ["send-keys", "-t", "%1", "a;b"]
+
+
+def test_join_commands_separates_with_semicolon_argument():
+    assert join_commands((["a", "1"], ["b"], ["c", "2"])) == ["a", "1", ";", "b", ";", "c", "2"]
+
+
+@pytest.mark.parametrize(
+    "arg, sent",
+    [
+        ("x;", "x" + BS + ";"),
+        (";", BS + ";"),
+        ("x" + BS + ";", "x" + BS + BS + ";"),
+        ("x;y", "x;y"),
+        ("x" + BS, "x" + BS),
+    ],
+)
+def test_join_commands_escapes_trailing_semicolon(arg, sent):
+    assert join_commands((["set-buffer", arg],)) == ["set-buffer", sent]

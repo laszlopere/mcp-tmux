@@ -38,6 +38,22 @@ class TmuxResult:
         return self.exit_code == 0
 
 
+def join_commands(commands: tuple[list[str], ...]) -> list[str]:
+    """Join tmux commands into one argv, separated by ``;`` arguments.
+
+    tmux treats any argument ending in ``;`` as a command separator (dropping
+    the ``;``), even with a single command, and turns a trailing ``\\;`` back
+    into a literal ``;``. So every argument ending in ``;`` gets that escape,
+    which makes it reach the command unchanged (``"ls;"`` -> ``"ls\\;"``).
+    """
+    argv: list[str] = []
+    for i, command in enumerate(commands):
+        if i:
+            argv.append(";")
+        argv += [a[:-1] + "\\;" if a.endswith(";") else a for a in command]
+    return argv
+
+
 def _map_error(stderr: str, exit_code: int) -> str:
     """Translate common tmux stderr into a clearer message."""
     s = stderr.strip().lower()
@@ -68,34 +84,48 @@ class TmuxRunner:
     def resolve(self, target: str | None) -> Target:
         return resolve_target(target, self.config)
 
+    def _argv(self, commands: tuple[list[str], ...], target: str | None, verbatim: bool):
+        if verbatim:
+            if len(commands) != 1:
+                raise ValueError("verbatim takes exactly one argument list")
+            tmux_args = list(commands[0])
+        else:
+            tmux_args = join_commands(commands)
+        return self.resolve(target).build_argv(tmux_args, tmux_bin=self.tmux_bin)
+
     async def run(
         self,
-        tmux_args: list[str],
-        *,
+        *commands: list[str],
         target: str | None = None,
         timeout: float | None = None,
+        verbatim: bool = False,
     ) -> TmuxResult:
-        """Run ``tmux <tmux_args>`` and return stdout/stderr/exit_code."""
-        tgt = self.resolve(target)
-        argv = tgt.build_argv(tmux_args, tmux_bin=self.tmux_bin)
+        """Run ``tmux <command> [; <command> ...]`` and return stdout/stderr/exit_code.
+
+        Several commands run in one tmux invocation (one process, one SSH round
+        trip). tmux stops at the first failing command; stdout is the
+        concatenated output of the commands that ran. Arguments are passed
+        literally (see :func:`join_commands`); ``verbatim=True`` hands a single
+        argument list to tmux untouched, so ``;`` there separates commands.
+        """
+        argv = self._argv(commands, target, verbatim)
         return await self._exec(argv, timeout if timeout is not None else self._default_timeout)
 
     async def run_checked(
         self,
-        tmux_args: list[str],
-        *,
+        *commands: list[str],
         target: str | None = None,
         timeout: float | None = None,
+        verbatim: bool = False,
     ) -> str:
         """Run and return stdout, raising :class:`TmuxError` on non-zero exit."""
-        result = await self.run(tmux_args, target=target, timeout=timeout)
+        result = await self.run(*commands, target=target, timeout=timeout, verbatim=verbatim)
         if not result.ok:
-            tgt = self.resolve(target)
             raise TmuxError(
                 _map_error(result.stderr, result.exit_code),
                 exit_code=result.exit_code,
                 stderr=result.stderr,
-                argv=tgt.build_argv(tmux_args, tmux_bin=self.tmux_bin),
+                argv=self._argv(commands, target, verbatim),
             )
         return result.stdout
 

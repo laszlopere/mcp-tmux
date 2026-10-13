@@ -304,3 +304,26 @@ async def test_wait_for_idle_times_out_on_busy_pane(runner):
 
     await runner.run_checked(["send-keys", "-t", "idleb", "C-c"])
     await runner.run_checked(["kill-session", "-t", "idleb"])
+
+
+@pytest.mark.parametrize("arg", ["plain", "ls;", ";", "x" + chr(92) + ";", "a;b"])
+async def test_arguments_reach_tmux_literally(runner, arg):
+    # A trailing ";" is tmux's command separator; the runner escapes it.
+    await runner.run_checked(["new-session", "-d", "-s", "lit"])
+    out = await runner.run_checked(
+        ["set-buffer", "-b", "lit", "--", arg],
+        ["show-buffer", "-b", "lit"],
+    )
+    assert out == arg
+
+
+async def test_batch_stops_at_first_failing_command(runner):
+    await runner.run_checked(["new-session", "-d", "-s", "bat"])
+    result = await runner.run(
+        ["has-session", "-t", "no-such-session"],
+        ["display-message", "-p", "ran"],
+    )
+    assert not result.ok
+    assert "ran" not in result.stdout
+    ok = await runner.run_checked(["has-session", "-t", "bat"], ["display-message", "-p", "ran"])
+    assert ok.strip() == "ran"

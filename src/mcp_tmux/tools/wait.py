@@ -191,8 +191,11 @@ def register(mcp, runner, enabled) -> None:
         end = f"__MCP_END_{tok}__"
         # printf the BEG marker, run the command, then printf END + its $?.
         line = f"printf '%s\\n' {beg}; {command}; printf '%s %d\\n' {end} \"$?\""
-        await runner.run_checked(["send-keys", "-t", target_pane, "-l", line], target=target)
-        await runner.run_checked(["send-keys", "-t", target_pane, "Enter"], target=target)
+        await runner.run_checked(
+            ["send-keys", "-t", target_pane, "-l", line],
+            ["send-keys", "-t", target_pane, "Enter"],
+            target=target,
+        )
 
         t0 = time.monotonic()
         deadline = t0 + timeout
