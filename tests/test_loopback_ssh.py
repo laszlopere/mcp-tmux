@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import shutil
 import subprocess
 
@@ -43,3 +44,16 @@ async def test_session_roundtrip_over_ssh(runner):
     # The same server is visible locally: SSH really landed on this machine.
     local = TmuxRunner({"defaults": {"socket_name": SOCKET}, "targets": {}})
     assert (await local.run(["has-session", "-t", "lb"])).ok
+
+
+async def test_timeout_returns_while_remote_command_still_runs(runner):
+    # The multiplexing master keeps the killed client's pipes open until the
+    # remote command ends; the timeout must not wait for that.
+    await runner.run_checked(["new-session", "-d", "-s", "lbto"], target="loop")
+    try:
+        result = await asyncio.wait_for(
+            runner.run(["wait-for", "lb-never"], target="loop", timeout=0.5), 5
+        )
+        assert result.exit_code == 124
+    finally:
+        await runner.run_checked(["wait-for", "-S", "lb-never"], target="loop")

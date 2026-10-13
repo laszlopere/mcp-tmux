@@ -54,6 +54,18 @@ def join_commands(commands: tuple[list[str], ...]) -> list[str]:
     return argv
 
 
+async def _kill(proc: asyncio.subprocess.Process) -> None:
+    """Kill ``proc`` and wait for it to exit.
+
+    Not ``proc.wait()``: that also waits for the pipes to close, and an SSH
+    multiplexing client hands its stdio to the ControlMaster, which keeps them
+    open until the remote command ends, however long that takes.
+    """
+    proc.kill()
+    while proc.returncode is None:
+        await asyncio.sleep(0.005)
+
+
 def _map_error(stderr: str, exit_code: int) -> str:
     """Translate common tmux stderr into a clearer message."""
     s = stderr.strip().lower()
@@ -145,9 +157,12 @@ class TmuxRunner:
         try:
             out, err = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
+            await _kill(proc)
             return TmuxResult("", f"command timed out after {timeout:g}s", 124)
+        except asyncio.CancelledError:
+            # Don't leave the process behind (e.g. a blocked `tmux wait-for`).
+            await _kill(proc)
+            raise
 
         return TmuxResult(
             out.decode("utf-8", "replace"),
