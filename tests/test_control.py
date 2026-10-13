@@ -10,6 +10,7 @@ from __future__ import annotations
 import shutil
 
 import pytest
+from _sockets import private_socket
 
 from mcp_tmux.control import (
     ControlConnection,
@@ -180,7 +181,7 @@ async def test_close_suppresses_reconnect():
 pytestmark_e2e = pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux not installed")
 
 CONFIG = {
-    "defaults": {"socket_name": "mcp-tmux-cm", "timeout": 10},
+    "defaults": {"socket_name": private_socket("mcp-tmux-cm"), "timeout": 10},
     "targets": {},
     "toolsets": ["all"],
 }

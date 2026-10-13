@@ -11,6 +11,7 @@ import json
 import shutil
 
 import pytest
+from _sockets import private_socket
 
 from mcp_tmux.runner import TmuxRunner
 from mcp_tmux.server import build_server
@@ -18,7 +19,7 @@ from mcp_tmux.server import build_server
 pytestmark = pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux not installed")
 
 CONFIG = {
-    "defaults": {"socket_name": "mcp-tmux-p5", "timeout": 10},
+    "defaults": {"socket_name": private_socket("mcp-tmux-p5"), "timeout": 10},
     "targets": {},
     "toolsets": ["all"],
 }

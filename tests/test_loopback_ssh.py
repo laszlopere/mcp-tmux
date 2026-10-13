@@ -7,12 +7,13 @@ import shutil
 import subprocess
 
 import pytest
+from _sockets import private_socket
 
 from mcp_tmux.runner import TmuxRunner
 
 pytestmark = pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux not installed")
 
-SOCKET = "mcp-tmux-loopback"
+SOCKET = private_socket("mcp-tmux-loopback")
 
 
 @pytest.fixture

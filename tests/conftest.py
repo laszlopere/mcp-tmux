@@ -18,10 +18,17 @@ from typing import Any
 
 import pytest
 from _loopback_sshd import LoopbackSSH, LoopbackSSHError, loopback_sshd
+from _sockets import remove_private_sockets
 
 import mcp_tmux.runner
 from mcp_tmux.runner import TmuxRunner
 from mcp_tmux.targets import Target, resolve_target
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _remove_private_sockets():
+    yield
+    remove_private_sockets()
 
 
 @pytest.fixture(scope="session")

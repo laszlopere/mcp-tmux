@@ -1,7 +1,7 @@
 """End-to-end integration against a real tmux on a throwaway socket.
 
 Skipped automatically when tmux is not installed. Uses a private socket
-(`-L mcp-tmux-test`) so it never touches the user's real tmux server.
+(`-L mcp-tmux-test-<pid>`) so it never touches the user's real tmux server.
 """
 
 from __future__ import annotations
@@ -9,6 +9,7 @@ from __future__ import annotations
 import shutil
 
 import pytest
+from _sockets import private_socket
 
 from mcp_tmux.runner import TmuxRunner
 
@@ -16,7 +17,7 @@ pytestmark = pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux not i
 
 # Route every command to an isolated server via a default socket name.
 CONFIG = {
-    "defaults": {"socket_name": "mcp-tmux-test", "timeout": 10},
+    "defaults": {"socket_name": private_socket("mcp-tmux-test"), "timeout": 10},
     "targets": {},
     "toolsets": ["all"],
 }

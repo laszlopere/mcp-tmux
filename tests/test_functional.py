@@ -28,13 +28,14 @@ import os
 import shutil
 
 import pytest
+from _sockets import private_socket
 
 from mcp_tmux.runner import TmuxRunner
 from mcp_tmux.server import build_server
 
 HAVE_TMUX = shutil.which("tmux") is not None
 LOCAL_CONFIG = {
-    "defaults": {"socket_name": "mcp-tmux-func", "timeout": 15},
+    "defaults": {"socket_name": private_socket("mcp-tmux-func"), "timeout": 15},
     "targets": {},
     "toolsets": ["all"],
 }

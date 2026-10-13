@@ -9,6 +9,7 @@ from dataclasses import replace
 from typing import Any
 
 import pytest
+from _sockets import private_socket
 
 import mcp_tmux.runner
 from mcp_tmux.config import load_config
@@ -115,7 +116,7 @@ def test_transport_from_config_and_runtime_switch():
 # --- against real tmux, locally and over loopback SSH -------------------------
 
 needs_tmux = pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux not installed")
-SOCKET = "mcp-tmux-transport"
+SOCKET = private_socket("mcp-tmux-transport")
 CONFIG = {
     "defaults": {"socket_name": SOCKET, "timeout": 10, "transport": "control"},
     "targets": {},
