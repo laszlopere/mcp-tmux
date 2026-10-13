@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "commit": "v0.3.1-7-ge444130-dirty",
+    "date": "2026-10-13T07:09:21+00:00",
+    "machine": "mini06",
+    "tmux": "tmux 3.4",
+    "n": 50,
+    "runs": 10,
+    "host": "pipnode"
+  },
+  "results": {
+    "local": {
+      "capture_pane": {
+        "n": 50,
+        "median_ms": 2.21,
+        "mean_ms": 2.37,
+        "p90_ms": 3.01,
+        "min_ms": 1.87
+      },
+      "tmux_run": {
+        "n": 10,
+        "median_ms": 6.86,
+        "mean_ms": 6.87,
+        "p90_ms": 7.45,
+        "min_ms": 5.8
+      }
+    },
+    "loopback": {
+      "capture_pane": {
+        "n": 50,
+        "median_ms": 181.65,
+        "mean_ms": 182.16,
+        "p90_ms": 186.48,
+        "min_ms": 176.64
+      },
+      "tmux_run": {
+        "n": 10,
+        "median_ms": 548.9,
+        "mean_ms": 547.37,
+        "p90_ms": 554.45,
+        "min_ms": 539.57
+      }
+    },
+    "host": {
+      "capture_pane": {
+        "n": 50,
+        "median_ms": 245.55,
+        "mean_ms": 245.29,
+        "p90_ms": 254.04,
+        "min_ms": 230.87
+      },
+      "tmux_run": {
+        "n": 10,
+        "median_ms": 743.94,
+        "mean_ms": 743.32,
+        "p90_ms": 756.93,
+        "min_ms": 730.76
+      }
+    }
+  }
+}

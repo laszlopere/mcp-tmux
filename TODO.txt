@@ -32,7 +32,7 @@ Completed items are in TODO-DONE.txt.
       `openssh-server` if the runner lacks it.
    [x] 10.3. Gaps in coverage: `tmux_run` with a non-zero exit, a timeout while
       the command is still running, and output that contains the marker text.
-   [ ] 10.4. Timing script (outside the test suite): N `capture-pane` calls plus
+   [x] 10.4. Timing script (outside the test suite): N `capture-pane` calls plus
       a `tmux_run` round trip, local and loopback SSH (optionally a real host);
       record a baseline before 10.5–10.8 and compare after each one.
    [ ] 10.5. SSH multiplexing by default: add `ControlMaster=auto`,
