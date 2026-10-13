@@ -140,8 +140,10 @@ class ControlConnection:
         buffer_size: int = 5000,
         reconnect: bool = True,
         max_reconnects: int = 10,
+        attach_flags: str | None = None,
     ):
         self.runner = runner
+        self.attach_flags = attach_flags  # attach -f (tmux 3.2+); also adds -N
         self.target = target
         self.session = session
         self.stream_id = f"cm-{uuid.uuid4().hex[:8]}"
@@ -176,14 +178,17 @@ class ControlConnection:
         await self._spawn()
 
     async def _spawn(self) -> None:
-        argv = self.target.build_argv(
-            ["-C", "attach", "-t", self.session], tmux_bin=self.runner.tmux_bin
-        )
+        args = ["-C", "attach", "-t", self.session]
+        if self.attach_flags:
+            # -N: don't start a server just to fail to attach (see transport.py).
+            args = ["-N", *args, "-f", self.attach_flags]
+        argv = self.target.build_argv(args, tmux_bin=self.runner.tmux_bin)
         self._proc = await asyncio.create_subprocess_exec(
             *argv,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            limit=64 * 1024 * 1024,  # a burst of %output can be one long line
         )
         self.alive = True
         self._last_spawn_at = time.monotonic()

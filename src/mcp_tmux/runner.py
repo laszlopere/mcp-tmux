@@ -8,6 +8,7 @@ error mapping live in exactly one place.
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -15,6 +16,17 @@ from .capabilities import Capabilities
 from .config import DEFAULT_TIMEOUT
 from .formats import build_format, coerce_records, parse_records
 from .targets import Target, resolve_target
+from .transport import (
+    TRANSPORTS,
+    ControlChannel,
+    ControlUnavailable,
+    needs_oneshot,
+    split_cli_args,
+)
+
+# After a failed attach (no server, no session yet), run one-shot for this long
+# before trying the control client again.
+CONTROL_RETRY_DELAY = 1.0
 
 
 class TmuxError(Exception):
@@ -92,9 +104,74 @@ class TmuxRunner:
             (config.get("defaults", {}) or {}).get("timeout", DEFAULT_TIMEOUT)
         )
         self._caps_cache: dict[str, Capabilities] = {}
+        self._transport_override: dict[str, str] = {}  # target name -> transport
+        self._channels: dict[str, ControlChannel] = {}  # Target.key -> channel
+        self._channel_locks: dict[str, asyncio.Lock] = {}
+        self._control_retry_at: dict[str, float] = {}
 
     def resolve(self, target: str | None) -> Target:
         return resolve_target(target, self.config)
+
+    def configured_transport(self, target: str | None) -> str:
+        """The transport the config file selects for ``target``."""
+        tgt = self.resolve(target)
+        spec = (self.config.get("targets", {}) or {}).get(tgt.name, {}) or {}
+        defaults = self.config.get("defaults", {}) or {}
+        return str(spec.get("transport") or defaults.get("transport") or "oneshot")
+
+    def transport(self, target: str | None) -> str:
+        """The transport in effect for ``target`` (runtime choice, else config)."""
+        name = self.resolve(target).name
+        return self._transport_override.get(name) or self.configured_transport(target)
+
+    async def set_transport(self, target: str | None, transport: str) -> None:
+        """Switch ``target`` to ``transport`` until the server restarts."""
+        if transport not in TRANSPORTS:
+            raise ValueError(f"transport must be one of: {', '.join(TRANSPORTS)}")
+        tgt = self.resolve(target)
+        self._transport_override[tgt.name] = transport
+        if transport == "oneshot":
+            await self._close_channel(tgt.key)
+        self._control_retry_at.pop(tgt.key, None)
+
+    def control_connected(self, target: str | None) -> bool:
+        channel = self._channels.get(self.resolve(target).key)
+        return channel is not None and channel.alive
+
+    async def aclose(self) -> None:
+        """Close every control client."""
+        for key in list(self._channels):
+            await self._close_channel(key)
+
+    async def _close_channel(self, key: str) -> None:
+        channel = self._channels.pop(key, None)
+        if channel is not None:
+            await channel.close()
+
+    async def _control_channel(self, target: str | None) -> ControlChannel | None:
+        """The target's control client, attaching one if needed; None to go one-shot."""
+        tgt = self.resolve(target)
+        channel = self._channels.get(tgt.key)
+        if channel is not None and channel.alive:
+            return channel
+        if time.monotonic() < self._control_retry_at.get(tgt.key, 0.0):
+            return None
+        if not (await self.capabilities(target)).has("control_transport"):
+            return None
+        lock = self._channel_locks.setdefault(tgt.key, asyncio.Lock())
+        async with lock:
+            channel = self._channels.get(tgt.key)
+            if channel is not None and channel.alive:
+                return channel
+            await self._close_channel(tgt.key)  # dead: server restarted, session gone
+            channel = ControlChannel(tgt, self.tmux_bin)
+            try:
+                await channel.connect()
+            except ControlUnavailable:
+                self._control_retry_at[tgt.key] = time.monotonic() + CONTROL_RETRY_DELAY
+                return None
+            self._channels[tgt.key] = channel
+            return channel
 
     def _argv(self, commands: tuple[list[str], ...], target: str | None, verbatim: bool):
         if verbatim:
@@ -119,9 +196,39 @@ class TmuxRunner:
         concatenated output of the commands that ran. Arguments are passed
         literally (see :func:`join_commands`); ``verbatim=True`` hands a single
         argument list to tmux untouched, so ``;`` there separates commands.
+
+        With the ``control`` transport the commands go to the target's control
+        client instead, unless they must run one-shot (see
+        :mod:`mcp_tmux.transport`) or no client can attach.
         """
-        argv = self._argv(commands, target, verbatim)
-        return await self._exec(argv, timeout if timeout is not None else self._default_timeout)
+        timeout = timeout if timeout is not None else self._default_timeout
+        control = self.transport(target) == "control"
+        if control:
+            cmds = split_cli_args(list(commands[0])) if verbatim else [list(c) for c in commands]
+            if cmds and not needs_oneshot(cmds):
+                channel = await self._control_channel(target)
+                if channel is not None:
+                    return await channel.run(cmds, timeout)
+            if any(c and "kill-server".startswith(c[0]) and len(c[0]) >= 5 for c in cmds):
+                # Detach first: a server with a client still attached outlives
+                # kill-server for a moment, and a new-session right after it
+                # would reach the dying server.
+                await self._close_channel(self.resolve(target).key)
+        result = await self._exec(self._argv(commands, target, verbatim), timeout)
+        if (
+            not result.ok
+            and "server exited unexpectedly" in result.stderr
+            and any(c and c[0] == "new-session" for c in commands)
+        ):
+            # Reached a server that was exiting (kill-server returns before
+            # the server is gone while clients are still attached). Nothing was
+            # created on it; the retry starts a fresh server.
+            await asyncio.sleep(0.1)
+            result = await self._exec(self._argv(commands, target, verbatim), timeout)
+        if control and result.ok and any(c and c[0] == "new-session" for c in commands):
+            # There is a session to attach to now.
+            self._control_retry_at.pop(self.resolve(target).key, None)
+        return result
 
     async def run_checked(
         self,

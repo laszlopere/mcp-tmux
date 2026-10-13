@@ -34,6 +34,7 @@ _FEATURES: dict[str, tuple[int, int]] = {
     "new_session_env": (3, 0),  # new-session -e KEY=VAL
     "pane_title": (2, 6),  # select-pane -T <title> (set pane title)
     "refresh_client_size": (2, 4),  # refresh-client -C WxH (set control client size)
+    "control_transport": (3, 2),  # attach -f no-output,ignore-size (transport.py)
 }
 
 _VERSION_RE = re.compile(r"(\d+)\.(\d+)")

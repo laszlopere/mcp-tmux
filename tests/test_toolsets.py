@@ -46,8 +46,8 @@ def test_each_optin_adds_exactly_its_tools(name):
 def test_all_matches_full_surface():
     full = set().union(*TOOLSETS.values())
     assert _names(["all"]) == full
-    # The full surface is the 60-tool count from the P6/P7 inventory.
-    assert len(full) == 60
+    # The full surface: the 60 tools of the P6/P7 inventory plus tmux_transport.
+    assert len(full) == 61
 
 
 def test_optin_groups_are_disjoint_from_core_and_each_other():

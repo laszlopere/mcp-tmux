@@ -15,6 +15,7 @@ Schema::
     socket_name = "..."   # optional default `tmux -L` socket
     socket_path = "..."   # optional default `tmux -S` socket path
     config_file = "..."   # optional default `tmux -f` config file
+    transport = "oneshot" # or "control" (see mcp_tmux.transport)
 
     [targets.<name>]
     host = "user@host"            # required; passed to ssh
@@ -22,6 +23,7 @@ Schema::
     socket_name = "work"          # optional per-target tmux -L
     socket_path = "..."           # optional per-target tmux -S
     config_file = "..."           # optional per-target tmux -f
+    transport = "control"         # optional per-target transport
 """
 
 from __future__ import annotations
@@ -30,6 +32,8 @@ import os
 import sys
 from pathlib import Path
 from typing import Any
+
+from .transport import TRANSPORTS
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -70,6 +74,13 @@ def load_config(path: Path | None = None) -> dict[str, Any]:
     for name, spec in targets.items():
         if not isinstance(spec, dict) or "host" not in spec:
             raise ValueError(f"target '{name}' must be a table with a 'host' key")
+    for where, table in [
+        ("defaults", defaults),
+        *((f"targets.{n}", s) for n, s in targets.items()),
+    ]:
+        transport = table.get("transport")
+        if transport is not None and transport not in TRANSPORTS:
+            raise ValueError(f"config '{where}.transport' must be one of: {', '.join(TRANSPORTS)}")
 
     toolsets = raw.get("toolsets")
     if toolsets is not None and (

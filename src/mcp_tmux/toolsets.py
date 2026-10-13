@@ -25,6 +25,7 @@ CORE: frozenset[str] = frozenset(
         "tmux_query",
         "tmux_version",
         "tmux_list_targets",
+        "tmux_transport",
         # sessions
         "tmux_has_session",
         "tmux_new_session",

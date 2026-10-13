@@ -122,11 +122,11 @@ python -m mcp_tmux       # stdio server
 Tools are grouped into **toolsets** so a session only pays the schema cost of
 what it needs. `core` is always loaded; the rest are opt-in (see
 [Selecting toolsets](#selecting-toolsets)). A default session loads
-`core` + `automation` (~18 tools); `["all"]` loads the full surface (60).
+`core` + `automation` (~19 tools); `["all"]` loads the full surface (61).
 
 | Toolset | Tools |
 |---|---|
-| **core** *(always loaded)* | `tmux_command`, `tmux_query`, `tmux_version`, `tmux_list_targets`, `tmux_has_session`, `tmux_new_session`, `tmux_send_keys`, `tmux_capture_pane`, `tmux_new_window`, `tmux_list_panes`, `tmux_split_window`, `tmux_list`, `tmux_kill`, `tmux_rename`, `tmux_select` |
+| **core** *(always loaded)* | `tmux_command`, `tmux_query`, `tmux_version`, `tmux_list_targets`, `tmux_transport`, `tmux_has_session`, `tmux_new_session`, `tmux_send_keys`, `tmux_capture_pane`, `tmux_new_window`, `tmux_list_panes`, `tmux_split_window`, `tmux_list`, `tmux_kill`, `tmux_rename`, `tmux_select` |
 | `automation` *(default)* | `tmux_wait_for_text`, `tmux_wait_for_idle`, `tmux_run` |
 | `layout` | `tmux_next_layout`, `tmux_move_window`, `tmux_select_layout`, `tmux_resize_pane`, `tmux_set_pane_title`, `tmux_clear_history`, `tmux_swap`, `tmux_last`, `tmux_respawn`, `tmux_link_window`, `tmux_unlink_window`, `tmux_break_pane`, `tmux_join_pane`, `tmux_find_window`, `tmux_pipe_pane` |
 | `buffers` | `tmux_set_buffer`, `tmux_paste_buffer`, `tmux_delete_buffer`, `tmux_save_buffer`, `tmux_load_buffer` |
@@ -233,6 +233,7 @@ Optional TOML at `~/.config/mcp-tmux/config.toml` (override with
 
 [defaults]
 timeout = 15                 # seconds per tmux invocation
+# transport = "control"      # see "Transport" below; default "oneshot"
 # socket_name = "work"       # default `tmux -L`
 # socket_path = "/tmp/sock"  # default `tmux -S`
 
@@ -244,6 +245,31 @@ ssh_options = ["-J", "bastion", "-p", "2222"]
 
 With no config file the server still works against local tmux and any ad-hoc
 `user@host` target (SSH options come from your `~/.ssh/config`).
+
+### Transport
+
+By default every tmux command is a separate `tmux` process (`ssh host tmux ...`
+for a remote target): about 2 ms per command locally and about 20 ms to a LAN
+host. `transport = "control"` (tmux 3.2+, in `[defaults]` or a
+`[targets.<name>]` table) instead keeps one control-mode client
+(`tmux -C attach -f no-output,ignore-size`) per target and sends the commands
+through it: about 0.1 ms locally and about 1 ms to a LAN host. With it,
+`tmux_wait_for_text` / `tmux_wait_for_idle` are woken by the pane's output
+instead of polling.
+
+The cost: that client is attached to one of the target's sessions. The session
+shows as attached (to you as well), attaching makes it tmux's most recent
+session (what a plain `tmux attach` or a command without `-t` picks), commands
+sent without `-t` default to it, and `list-clients` shows the client. The wait
+tools attach a read-only client to the waited-on pane's session while they
+wait. Commands that block or act on the client itself (`wait-for`,
+`run-shell`, `if-shell`, attach/detach/switch, `kill-server`, `new-session`,
+...) still run one-shot, as does everything while the target has no session.
+
+The `tmux_transport` tool reports the transport and can switch it until the
+server restarts; its description tells the AI to ask you first.
+
+### SSH multiplexing
 
 SSH connections are multiplexed: every remote call adds `-o ControlMaster=auto
 -o ControlPersist=10m -o ControlPath=<private dir>/ssh-%C`, so only the first

@@ -4,7 +4,8 @@ Driving a shell blind (send -> sleep -> capture) is fragile. These tools poll
 ``capture-pane`` so an agent can wait for a specific result, wait for output to
 settle, or run a command and get back just its output + exit status.
 ``tmux_run`` polls only as a fallback: the typed command line signals a
-``tmux wait-for`` channel when it finishes.
+``tmux wait-for`` channel when it finishes. With the control transport the
+other two waits are woken by the pane's ``%output`` instead of polling.
 """
 
 from __future__ import annotations
@@ -18,6 +19,8 @@ from typing import Annotated
 
 from pydantic import Field
 
+from ..control import ControlConnection
+from ..formats import FIELD_SEP
 from ._capture import capture_args, capture_text, trim_padding
 from ._params import Target, TargetPane
 from ._util import toolset_gate
@@ -54,6 +57,72 @@ def _extract_run_output(content: str, beg: str, end: str) -> tuple[int, str] | N
     return None
 
 
+# After pane output wakes a wait, let more of it arrive before capturing, so a
+# busy pane isn't captured once per write.
+OUTPUT_SETTLE = 0.05
+
+
+class _PaneWatch:
+    """A read-only control client on a pane's session, woken by its output."""
+
+    def __init__(self, conn: ControlConnection, pane_id: str):
+        self.conn = conn
+        self.pane_id = pane_id
+
+    @classmethod
+    async def open(cls, runner, target_pane: str, target: str | None) -> _PaneWatch | None:
+        """Attach to the pane's session; None means poll instead.
+
+        Only with the control transport (its side effects are opted into),
+        tmux 3.2+, and a session that accepts the client.
+        """
+        if runner.transport(target) != "control":
+            return None
+        if not (await runner.capabilities(target)).has("control_transport"):
+            return None
+        ids = await runner.run_checked(
+            ["display-message", "-p", "-t", target_pane, f"#{{pane_id}}{FIELD_SEP}#{{session_id}}"],
+            target=target,
+        )
+        pane_id, _, session_id = ids.strip().partition(FIELD_SEP)
+        conn = ControlConnection(
+            runner,
+            runner.resolve(target),
+            session_id,
+            reconnect=False,
+            attach_flags="ignore-size,read-only",
+        )
+        try:
+            await conn.start()
+            # Output only counts once the client is attached; until then it
+            # would be missed, so wait for the attach to finish.
+            deadline = time.monotonic() + 5
+            while conn.alive and time.monotonic() < deadline:
+                read = await conn.read(timeout=deadline - time.monotonic())
+                if any(e["type"] == "session-changed" for e in read["events"]):
+                    return cls(conn, pane_id)
+        except Exception:
+            pass
+        await conn.close()
+        return None
+
+    async def output(self, timeout: float) -> bool | None:
+        """Wait up to ``timeout`` for pane output: True if some came, False if
+        not, None if the client went away (poll from here on)."""
+        read = await self.conn.read(timeout=max(0.0, timeout))
+        events = read["events"]
+        if any(e["type"] == "exit" for e in events) or not read["alive"]:
+            return None
+        if not any(e["type"] == "output" and e.get("pane") == self.pane_id for e in events):
+            return False
+        await asyncio.sleep(OUTPUT_SETTLE)
+        await self.conn.read(timeout=0)  # drop what arrived meanwhile
+        return True
+
+    async def close(self) -> None:
+        await self.conn.close()
+
+
 def register(mcp, runner, enabled) -> None:
     tool = toolset_gate(mcp, enabled)
 
@@ -78,7 +147,7 @@ def register(mcp, runner, enabled) -> None:
         ] = None,
         poll_interval: Annotated[
             float,
-            Field(description="Seconds between capture checks."),
+            Field(description="Seconds between capture checks (when polling)."),
         ] = DEFAULT_POLL,
         target: Target = None,
     ) -> dict:
@@ -92,6 +161,9 @@ def register(mcp, runner, enabled) -> None:
         Caveat: the pane also shows the command you typed, so a pattern can match
         your own echoed input line rather than the command's output. To wait for
         a command to *finish* and get just its output, prefer `tmux_run`.
+
+        The pane is re-captured every `poll_interval`, or, when the target uses
+        the control transport (see `tmux_transport`), whenever it writes output.
         """
         if regex:
             rx = re.compile(pattern)
@@ -103,21 +175,31 @@ def register(mcp, runner, enabled) -> None:
         t0 = time.monotonic()
         deadline = t0 + timeout
         content = ""
-        while True:
-            content = await capture_text(runner, target_pane, target=target, start=start)
-            if match(content):
-                return {
-                    "matched": True,
-                    "elapsed": round(time.monotonic() - t0, 3),
-                    "content": content,
-                }
-            if time.monotonic() >= deadline:
-                return {
-                    "matched": False,
-                    "elapsed": round(time.monotonic() - t0, 3),
-                    "content": content,
-                }
-            await asyncio.sleep(poll_interval)
+        watch = await _PaneWatch.open(runner, target_pane, target)
+        try:
+            while True:
+                content = await capture_text(runner, target_pane, target=target, start=start)
+                if match(content):
+                    return {
+                        "matched": True,
+                        "elapsed": round(time.monotonic() - t0, 3),
+                        "content": content,
+                    }
+                if time.monotonic() >= deadline:
+                    return {
+                        "matched": False,
+                        "elapsed": round(time.monotonic() - t0, 3),
+                        "content": content,
+                    }
+                if watch is not None:
+                    if await watch.output(deadline - time.monotonic()) is None:
+                        await watch.close()
+                        watch = None
+                else:
+                    await asyncio.sleep(poll_interval)
+        finally:
+            if watch is not None:
+                await watch.close()
 
     @tool()
     async def tmux_wait_for_idle(
@@ -132,14 +214,17 @@ def register(mcp, runner, enabled) -> None:
         ] = 30.0,
         poll_interval: Annotated[
             float,
-            Field(description="Seconds between capture checks."),
+            Field(description="Seconds between capture checks (when polling)."),
         ] = DEFAULT_POLL,
         target: Target = None,
     ) -> dict:
         """Wait until a pane's visible content stops changing.
 
         Returns once the capture is unchanged for `idle_seconds` (i.e. output
-        has settled), or after `timeout`.
+        has settled), or after `timeout`. When the target uses the control
+        transport (see `tmux_transport`) it instead waits for `idle_seconds`
+        without any output from the pane, so a redraw that changes nothing
+        visible also counts as activity.
 
         Use this when you don't know the exact completion text; if you do, wait
         on it with `tmux_wait_for_text`, and to run a command and get just its
@@ -149,6 +234,27 @@ def register(mcp, runner, enabled) -> None:
         """
         t0 = time.monotonic()
         deadline = t0 + timeout
+        watch = await _PaneWatch.open(runner, target_pane, target)
+        if watch is not None:
+            try:
+                last_output = time.monotonic()
+                while True:
+                    now = time.monotonic()
+                    quiet_left = idle_seconds - (now - last_output)
+                    if quiet_left <= 0 or now >= deadline:
+                        cur = await capture_text(runner, target_pane, target=target)
+                        return {
+                            "idle": quiet_left <= 0,
+                            "elapsed": round(now - t0, 3),
+                            "content": cur,
+                        }
+                    came = await watch.output(min(quiet_left, deadline - now))
+                    if came is None:
+                        break  # the client went away: poll for the rest
+                    if came:
+                        last_output = time.monotonic()
+            finally:
+                await watch.close()
         last = await capture_text(runner, target_pane, target=target)
         last_change = time.monotonic()
         while True:

@@ -39,6 +39,10 @@ default (the create -> send -> read loop, the wait/run helpers, and the
 surface with the `toolsets` config key or `MCP_TMUX_TOOLSETS` env var (e.g.
 "core,stream" or "all"). Opt-in groups: automation, layout, buffers, config,
 keybindings, copymode, clients, stream.
+
+`tmux_transport` reports how commands reach a target, and can switch it to a
+faster control-mode transport that stays attached to a session. Ask the user
+before switching it; its description lists the gains and the side effects.
 """
 
 
