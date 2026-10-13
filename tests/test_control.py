@@ -194,7 +194,7 @@ def _tool_json(res):
 
 
 @pytestmark_e2e
-async def test_control_mode_end_to_end():
+async def test_control_mode_end_to_end(transport):
     from mcp_tmux.runner import TmuxRunner
     from mcp_tmux.server import build_server
 
@@ -247,7 +247,7 @@ async def test_control_mode_end_to_end():
 
 
 @pytestmark_e2e
-async def test_stream_start_sets_client_size():
+async def test_stream_start_sets_client_size(transport):
     import asyncio
 
     from mcp_tmux.runner import TmuxRunner

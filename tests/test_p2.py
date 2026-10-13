@@ -25,7 +25,7 @@ CONFIG = {
 
 
 @pytest.fixture()
-async def runner():
+async def runner(transport):
     r = TmuxRunner(CONFIG)
     yield r
     await r.run(["kill-server"])

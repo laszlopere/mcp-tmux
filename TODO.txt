@@ -20,12 +20,12 @@ Completed items are in TODO-DONE.txt.
       loads a toolset mid-session. Only if static config proves too rigid.
 
 10. [ ] Speed up command transport, with SSH covered by the always-on tests.
-   [ ] 10.1. Loopback SSH test fixture: a session-scoped pytest fixture starts an
+   [x] 10.1. Loopback SSH test fixture: a session-scoped pytest fixture starts an
       unprivileged `sshd` on 127.0.0.1 at a free port, using a throwaway host
       key, client key, `authorized_keys` and `known_hosts` in a temp dir. It
       exposes a target whose `ssh_options` point at that port, key and
       known_hosts. No external hosts and no changes to `~/.ssh`.
-   [ ] 10.2. Run the SSH versions on every `pytest` run: parametrize the
+   [x] 10.2. Run the SSH versions on every `pytest` run: parametrize the
       functional workflow and the integration/control-mode suites over
       `local` and `loopback-ssh`, on isolated `-L` sockets. A missing `sshd`
       fails the run with an install hint instead of skipping. CI installs

@@ -23,7 +23,7 @@ CONFIG = {
 
 
 @pytest.fixture()
-async def runner():
+async def runner(transport):
     r = TmuxRunner(CONFIG)
     yield r
     # Tear down the throwaway server regardless of test outcome.

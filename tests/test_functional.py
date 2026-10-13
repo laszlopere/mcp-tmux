@@ -7,13 +7,15 @@ a client would, via ``mcp.call_tool`` / ``mcp.read_resource``.
 
 Two entry points run the *same* workflow:
 
-* ``test_functional_local`` — always runs (skipped only if tmux is absent). It
-  owns a throwaway session on an isolated ``-L`` socket, so it is hermetic and
-  CI-safe.
-* ``test_functional_remote`` — opt-in. Set ``MCP_TMUX_FUNC_TARGET`` (an ssh
-  destination or named profile, e.g. ``pipnode``) to run it. ``MCP_TMUX_FUNC_SESSION``
-  optionally borrows an existing session (e.g. ``testMCP``) instead of creating
-  one; a borrowed session is never killed and its active window is restored.
+* ``test_functional_local`` — always runs (skipped only if tmux is absent),
+  once against local tmux and once through the loopback sshd (the
+  ``transport`` fixture). It owns a throwaway session on an isolated ``-L``
+  socket, so it is hermetic and CI-safe.
+* ``test_functional_remote`` — opt-in, against a real remote host. Set
+  ``MCP_TMUX_FUNC_TARGET`` (an ssh destination or named profile, e.g.
+  ``pipnode``) to run it. ``MCP_TMUX_FUNC_SESSION`` optionally borrows an
+  existing session (e.g. ``testMCP``) instead of creating one; a borrowed
+  session is never killed and its active window is restored.
 
     MCP_TMUX_FUNC_TARGET=pipnode MCP_TMUX_FUNC_SESSION=testMCP \\
         pytest tests/test_functional.py -k remote
@@ -166,10 +168,10 @@ async def _run_full_workflow(mcp, *, target, session, owns_session) -> None:
 
 
 @pytest.mark.skipif(not HAVE_TMUX, reason="tmux not installed")
-async def test_functional_local():
+async def test_functional_local(transport):
     runner = TmuxRunner(LOCAL_CONFIG)
     mcp = build_server(config=LOCAL_CONFIG)
-    session = "functest-local"
+    session = f"functest-{transport}"
     try:
         created = _js(await mcp.call_tool("tmux_new_session", {"name": session, "detached": True}))
         assert created["name"] == session

@@ -33,6 +33,14 @@ jobs:
       - name: Type-check (mypy)
         run: uv run mypy
 
+      - name: Install sshd (loopback SSH tests)
+        # tests/conftest.py starts a private sshd on 127.0.0.1; it fails, not
+        # skips, when sshd is missing.
+        run: |
+          if ! [ -x /usr/sbin/sshd ]; then
+            sudo apt-get update && sudo apt-get install -y openssh-server
+          fi
+
       - name: Test (pytest)
         # tmux is present on ubuntu-latest, so integration tests run too.
         run: uv run pytest -v
