@@ -71,3 +71,15 @@ def test_map_error_no_server():
 def test_map_error_missing_session():
     msg = _map_error("can't find session: foo", 1)
     assert "does not exist" in msg
+
+
+@pytest.mark.parametrize(
+    "stderr",
+    ["can't find pane: %9", "can't find window: 7", "unknown command: frob"],
+)
+def test_map_error_passes_tmux_message_through(stderr):
+    assert _map_error(stderr, 1) == f"tmux: {stderr}"
+
+
+def test_map_error_empty_stderr_reports_status():
+    assert _map_error("", 3) == "tmux exited with status 3."

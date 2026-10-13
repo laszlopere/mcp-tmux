@@ -246,3 +246,61 @@ async def test_run_output_containing_marker_text(runner):
     assert r["output"].splitlines() == ["second"]
 
     await runner.run_checked(["kill-session", "-t", "runmk"])
+
+
+async def _wait_idle(mcp, pane, **args):
+    return _tool_json(await mcp.call_tool("tmux_wait_for_idle", {"target_pane": pane, **args}))
+
+
+async def test_wait_for_idle_on_quiet_pane(runner):
+    from mcp_tmux.server import build_server
+
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "idleq"])
+    await _run(mcp, "idleq", "echo QUIET-PANE")
+
+    r = await _wait_idle(mcp, "idleq", idle_seconds=0.5, timeout=10)
+    assert r["idle"] is True
+    assert 0.5 <= r["elapsed"] < 10
+    assert "QUIET-PANE" in r["content"]
+
+    await runner.run_checked(["kill-session", "-t", "idleq"])
+
+
+async def test_wait_for_idle_after_output_settles(runner):
+    from mcp_tmux.server import build_server
+
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "idles"])
+    await _run(mcp, "idles", "true")  # prompt is up
+
+    await runner.run_checked(
+        ["send-keys", "-t", "idles", "-l", "for i in 1 2 3 4 5; do echo tick$i; sleep 0.3; done"]
+    )
+    await runner.run_checked(["send-keys", "-t", "idles", "Enter"])
+    r = await _wait_idle(mcp, "idles", idle_seconds=0.8, timeout=15)
+    assert r["idle"] is True
+    # Not idle while ticking: the last tick arrives about 1.2s after the first.
+    assert r["elapsed"] >= 1.5
+    assert "tick5" in r["content"]
+
+    await runner.run_checked(["kill-session", "-t", "idles"])
+
+
+async def test_wait_for_idle_times_out_on_busy_pane(runner):
+    from mcp_tmux.server import build_server
+
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "idleb"])
+    await _run(mcp, "idleb", "true")
+
+    await runner.run_checked(
+        ["send-keys", "-t", "idleb", "-l", "while :; do date +%s%N; sleep 0.1; done"]
+    )
+    await runner.run_checked(["send-keys", "-t", "idleb", "Enter"])
+    r = await _wait_idle(mcp, "idleb", idle_seconds=1.0, timeout=2)
+    assert r["idle"] is False
+    assert 2 <= r["elapsed"] < 6
+
+    await runner.run_checked(["send-keys", "-t", "idleb", "C-c"])
+    await runner.run_checked(["kill-session", "-t", "idleb"])

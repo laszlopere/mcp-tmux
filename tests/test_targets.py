@@ -66,3 +66,48 @@ def test_build_argv_remote_quotes_command():
 
 def test_list_target_names():
     assert list_target_names(CONFIG) == ["local", "prod"]
+
+
+def test_build_argv_socket_path_and_config_file():
+    cfg = {"defaults": {"socket_path": "/tmp/s/tmux.sock", "config_file": "/etc/t.conf"}}
+    t = resolve_target(None, cfg)
+    assert t.build_argv(["ls"]) == [
+        "tmux",
+        "-u",
+        "-S",
+        "/tmp/s/tmux.sock",
+        "-f",
+        "/etc/t.conf",
+        "ls",
+    ]
+
+
+def test_build_argv_remote_quotes_socket_path_and_config_file():
+    cfg = {
+        "targets": {
+            "box": {
+                "host": "box",
+                "socket_path": "/tmp/my dir/tmux.sock",
+                "config_file": "/home/u/my tmux.conf",
+            }
+        }
+    }
+    argv = resolve_target("box", cfg).build_argv(["ls"])
+    assert argv[:2] == ["ssh", "box"]
+    assert argv[2] == "tmux -u -S '/tmp/my dir/tmux.sock' -f '/home/u/my tmux.conf' ls"
+
+
+def test_profile_flags_override_defaults():
+    cfg = {
+        "defaults": {"socket_name": "d", "config_file": "/d.conf"},
+        "targets": {"box": {"host": "box", "socket_name": "p"}},
+    }
+    t = resolve_target("box", cfg)
+    assert (t.socket_name, t.config_file) == ("p", "/d.conf")
+
+
+def test_ad_hoc_destination_has_no_ssh_options():
+    t = resolve_target("user@elsewhere", {"defaults": {"socket_name": "d"}})
+    assert t.is_remote and t.host == "user@elsewhere"
+    assert t.ssh_options == ()
+    assert t.build_argv(["ls"]) == ["ssh", "user@elsewhere", "tmux -u -L d ls"]
