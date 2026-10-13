@@ -535,3 +535,37 @@ before any tool code runs, and the model gets a cryptic protocol error it loops 
       `format_validation_error`; plus two honest raw-stdio e2e cases (stringified
       args repaired → tool runs; unrepairable args → actionable -32700). Full
       suite 204 passed / 1 skipped; ruff + mypy clean.
+
+10. [ ] Speed up command transport, with SSH covered by the always-on tests.
+   [ ] 10.1. Loopback SSH test fixture: a session-scoped pytest fixture starts an
+      unprivileged `sshd` on 127.0.0.1 at a free port, using a throwaway host
+      key, client key, `authorized_keys` and `known_hosts` in a temp dir. It
+      exposes a target whose `ssh_options` point at that port, key and
+      known_hosts. No external hosts and no changes to `~/.ssh`.
+   [ ] 10.2. Run the SSH versions on every `pytest` run: parametrize the
+      functional workflow and the integration/control-mode suites over
+      `local` and `loopback-ssh`, on isolated `-L` sockets. A missing `sshd`
+      fails the run with an install hint instead of skipping. CI installs
+      `openssh-server` if the runner lacks it.
+   [ ] 10.3. Gaps in coverage: `tmux_run` with a non-zero exit, a timeout while
+      the command is still running, and output that contains the marker text;
+      argv tests for the default SSH options (injected, overridable by a
+      profile's `ssh_options`, absent for local targets).
+   [ ] 10.4. Timing script (outside the test suite): N `capture-pane` calls plus
+      a `tmux_run` round trip, local and loopback SSH (optionally a real host);
+      record a baseline before 10.5–10.8 and compare after each one.
+   [ ] 10.5. SSH multiplexing by default: add `ControlMaster=auto`,
+      `ControlPersist` and a private `ControlPath` to remote argv unless the
+      user's options already set them.
+   [ ] 10.6. Batch tmux commands: combine multi-step tools into one invocation
+      with `\;` (e.g. send-keys followed by capture-pane).
+   [ ] 10.7. Event-driven waits: `tmux_run` signals completion with
+      `tmux wait-for -S <channel>` and blocks on `tmux wait-for <channel>`
+      instead of polling `capture-pane`; the exit code still comes from the
+      marker.
+   [ ] 10.8. Control mode as the command transport: one persistent `tmux -C`
+      connection per target (`attach -f no-output,ignore-size`, tmux 3.2+)
+      carries all commands via `%begin/%end/%error` framing, with reconnect
+      after server death, safe concurrent calls, and a fall back to one-shot
+      commands on older tmux. Wait tools use `%output` notifications instead
+      of polling.
