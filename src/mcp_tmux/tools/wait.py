@@ -3,19 +3,22 @@
 Driving a shell blind (send -> sleep -> capture) is fragile. These tools poll
 ``capture-pane`` so an agent can wait for a specific result, wait for output to
 settle, or run a command and get back just its output + exit status.
+``tmux_run`` polls only as a fallback: the typed command line signals a
+``tmux wait-for`` channel when it finishes.
 """
 
 from __future__ import annotations
 
 import asyncio
 import re
+import shlex
 import time
 import uuid
 from typing import Annotated
 
 from pydantic import Field
 
-from ._capture import capture_text
+from ._capture import capture_args, capture_text, trim_padding
 from ._params import Target, TargetPane
 from ._util import toolset_gate
 
@@ -177,15 +180,25 @@ def register(mcp, runner, enabled) -> None:
         ] = 2000,
         poll_interval: Annotated[
             float,
-            Field(description="Seconds between capture checks."),
+            Field(
+                description=(
+                    "Seconds between capture checks, used only when the pane's "
+                    "shell can't signal tmux (e.g. it is ssh'd to another host)."
+                )
+            ),
         ] = DEFAULT_POLL,
         target: Target = None,
     ) -> dict:
         """Run a shell command in a pane and return just its output + exit code.
 
-        Types `command` into the pane bracketed by unique markers, then polls
-        until the command finishes, and returns the text printed between the
-        markers. This is the reliable alternative to send-keys + sleep + capture.
+        Types `command` into the pane bracketed by unique markers, waits for it
+        to finish, and returns the text printed between the markers. This is
+        the reliable alternative to send-keys + sleep + capture.
+
+        The command line also runs `tmux wait-for -S` before and after the
+        command, so completion is signalled rather than polled for. If the
+        shell can't reach this tmux server (no `tmux` on its PATH, no $TMUX,
+        or the pane is logged in to another host), the pane is polled instead.
 
         Intended for NON-interactive commands at a shell prompt. Returns
         {"completed", "exit_code", "output", "elapsed"}; on timeout, completed is
@@ -194,34 +207,101 @@ def register(mcp, runner, enabled) -> None:
         tok = uuid.uuid4().hex[:8]
         beg = f"__MCP_BEG_{tok}__"
         end = f"__MCP_END_{tok}__"
-        # printf the BEG marker, run the command, then printf END + its $?.
-        line = f"printf '%s\\n' {beg}; {command}; printf '%s %d\\n' {end} \"$?\""
-        await runner.run_checked(
-            ["send-keys", "-t", target_pane, "-l", line],
-            ["send-keys", "-t", target_pane, "Enter"],
-            target=target,
+        channel = f"mcp-run-{tok}"
+        # The shell finds its own server through $TMUX. Without it (e.g. the
+        # pane is ssh'd elsewhere) tmux would signal some other host's or
+        # socket's server, so don't; errors are silenced. Either way tmux_run
+        # then polls.
+        tmux = shlex.quote(runner.tmux_bin)
+        signal = f'test -n "$TMUX" && {tmux} wait-for -S {channel} 2>/dev/null'
+        # Signal, printf the BEG marker, run the command, printf END + its $?,
+        # signal again.
+        line = (
+            f"{signal}; printf '%s\\n' {beg}; {command}; printf '%s %d\\n' {end} \"$?\"; {signal}"
         )
+        capture = await capture_args(runner, target_pane, target=target, start=-abs(history))
 
         t0 = time.monotonic()
         deadline = t0 + timeout
-        content = ""
-        while True:
-            content = await capture_text(runner, target_pane, target=target, start=-abs(history))
+
+        def finished(content: str) -> dict | None:
             found = _extract_run_output(content, beg, end)
-            if found is not None:
-                exit_code, output = found
-                return {
-                    "completed": True,
-                    "exit_code": exit_code,
-                    "output": output,
-                    "elapsed": round(time.monotonic() - t0, 3),
-                }
-            if time.monotonic() >= deadline:
-                return {
-                    "completed": False,
-                    "exit_code": None,
-                    "output": content,
-                    "elapsed": round(time.monotonic() - t0, 3),
-                    "error": "timed out waiting for command completion",
-                }
-            await asyncio.sleep(poll_interval)
+            if found is None:
+                return None
+            exit_code, output = found
+            return {
+                "completed": True,
+                "exit_code": exit_code,
+                "output": output,
+                "elapsed": round(time.monotonic() - t0, 3),
+            }
+
+        # Type the line and wait for its first signal in one invocation. Until
+        # that arrives, fall back to polling the pane. The loop below owns the
+        # deadline and cancels the probe; its own timeout is only a backstop.
+        probe = asyncio.create_task(
+            runner.run_checked(
+                ["send-keys", "-t", target_pane, "-l", line],
+                ["send-keys", "-t", target_pane, "Enter"],
+                ["wait-for", channel],
+                target=target,
+                timeout=timeout + 30,
+            )
+        )
+        content = ""
+        try:
+            while True:
+                await asyncio.wait({probe}, timeout=poll_interval)
+                if probe.done():
+                    probe.result()  # raises if send-keys failed
+                    break
+                content = await capture_text(
+                    runner, target_pane, target=target, start=-abs(history)
+                )
+                if (result := finished(content)) is not None:
+                    return result
+                if time.monotonic() >= deadline:
+                    return _run_timed_out(content, t0)
+        finally:
+            if not probe.done():
+                probe.cancel()
+                await asyncio.gather(probe, return_exceptions=True)
+                await _release(runner, channel, target)
+            elif not probe.cancelled():
+                probe.exception()  # retrieved, so asyncio doesn't log it
+
+        # The shell can signal: block until the second signal, then capture.
+        remaining = max(0.0, deadline - time.monotonic())
+        waited = await runner.run(["wait-for", channel], capture, target=target, timeout=remaining)
+        if waited.ok:
+            content = trim_padding(waited.stdout)
+            if (result := finished(content)) is not None:
+                return result
+        else:
+            await _release(runner, channel, target)
+        # Signalled but the markers aren't in the capture (scrolled out of
+        # `history`?), or timed out: one last look.
+        content = await capture_text(runner, target_pane, target=target, start=-abs(history))
+        if (result := finished(content)) is not None:
+            return result
+        return _run_timed_out(content, t0)
+
+
+def _run_timed_out(content: str, t0: float) -> dict:
+    return {
+        "completed": False,
+        "exit_code": None,
+        "output": content,
+        "elapsed": round(time.monotonic() - t0, 3),
+        "error": "timed out waiting for command completion",
+    }
+
+
+async def _release(runner, channel: str, target: str | None) -> None:
+    """Wake a ``wait-for`` we gave up on.
+
+    Killing a local waiter removes it from the server, but over SSH the remote
+    tmux client keeps waiting after the ssh client dies.
+    """
+    if runner.resolve(target).is_remote:
+        await runner.run(["wait-for", "-S", channel], target=target)

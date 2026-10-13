@@ -329,6 +329,49 @@ async def test_batch_stops_at_first_failing_command(runner):
     assert ok.strip() == "ran"
 
 
+async def test_run_completion_is_signalled_not_polled(runner):
+    from mcp_tmux.server import build_server
+
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "runsig"])
+    await _run(mcp, "runsig", "true")  # let the shell start
+
+    # A poll every 60s would time out; the wait-for signal ends the wait.
+    r = _tool_json(
+        await mcp.call_tool(
+            "tmux_run",
+            {
+                "target_pane": "runsig",
+                "command": "sleep 0.5; echo slept",
+                "timeout": 10,
+                "poll_interval": 60,
+            },
+        )
+    )
+    assert (r["completed"], r["exit_code"], r["output"]) == (True, 0, "slept")
+    assert 0.5 <= r["elapsed"] < 5
+
+    await runner.run_checked(["kill-session", "-t", "runsig"])
+
+
+async def test_run_polls_when_the_shell_cannot_signal(runner):
+    from mcp_tmux.server import build_server
+
+    mcp = build_server(config=CONFIG)
+    # Without $TMUX the shell's `tmux wait-for -S` can't find this server.
+    await runner.run_checked(["new-session", "-d", "-s", "runpoll", "env -u TMUX sh"])
+
+    r = _tool_json(
+        await mcp.call_tool(
+            "tmux_run",
+            {"target_pane": "runpoll", "command": "echo polled; false", "timeout": 10},
+        )
+    )
+    assert (r["completed"], r["exit_code"], r["output"]) == (True, 1, "polled")
+
+    await runner.run_checked(["kill-session", "-t", "runpoll"])
+
+
 async def test_run_output_without_trailing_newline(runner):
     from mcp_tmux.server import build_server
 

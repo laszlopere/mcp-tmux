@@ -41,7 +41,7 @@ Completed items are in TODO-DONE.txt.
       profile's `ssh_options`, absent for local targets.
    [x] 10.6. Batch tmux commands: combine multi-step tools into one invocation
       with `\;` (e.g. send-keys followed by capture-pane).
-   [ ] 10.7. Event-driven waits: `tmux_run` signals completion with
+   [x] 10.7. Event-driven waits: `tmux_run` signals completion with
       `tmux wait-for -S <channel>` and blocks on `tmux wait-for <channel>`
       instead of polling `capture-pane`; the exit code still comes from the
       marker.
