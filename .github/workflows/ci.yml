@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -42,5 +42,5 @@ jobs:
           fi
 
       - name: Test (pytest)
-        # tmux is present on ubuntu-latest, so integration tests run too.
+        # tmux is present on ubuntu-24.04, so integration tests run too.
         run: uv run pytest -v --cov=mcp_tmux
