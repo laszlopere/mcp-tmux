@@ -17,3 +17,9 @@ env/
 # OS / editor
 .DS_Store
 *.swp
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml

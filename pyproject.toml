@@ -26,7 +26,13 @@ Issues = "https://github.com/laszlopere/mcp-tmux/issues"
 Funding = "https://github.com/sponsors/laszlopere"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.6", "mypy>=1.11"]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pytest-cov>=5.0",
+]
 
 [project.scripts]
 mcp-tmux = "mcp_tmux.__main__:main"
@@ -37,6 +43,20 @@ packages = ["src/mcp_tmux"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["mcp_tmux"]
+branch = true
+# test_tolerant runs the server as a `python -m mcp_tmux` subprocess and stops
+# it with SIGTERM; save its data on SIGTERM instead of losing it.
+patch = ["subprocess"]
+sigterm = true
+
+[tool.coverage.report]
+# Fails the run (with --cov) when total coverage drops below this.
+fail_under = 89
+show_missing = true
+skip_covered = true
 
 [tool.ruff]
 line-length = 100

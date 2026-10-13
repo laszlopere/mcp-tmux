@@ -43,4 +43,4 @@ jobs:
 
       - name: Test (pytest)
         # tmux is present on ubuntu-latest, so integration tests run too.
-        run: uv run pytest -v
+        run: uv run pytest -v --cov=mcp_tmux
