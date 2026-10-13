@@ -41,7 +41,10 @@ class Target:
         return f"{self.host or 'local'}|{self.socket_name or ''}|{self.socket_path or ''}"
 
     def _tmux_global_flags(self) -> list[str]:
-        flags: list[str] = []
+        # -u: without a UTF-8 locale (common in SSH sessions and minimal
+        # containers) tmux prints the TAB in -F output as "_", which breaks
+        # record parsing.
+        flags: list[str] = ["-u"]
         if self.socket_name:
             flags += ["-L", self.socket_name]
         if self.socket_path:

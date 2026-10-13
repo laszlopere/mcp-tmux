@@ -38,13 +38,14 @@ def test_resolve_adhoc():
 
 def test_build_argv_local():
     t = resolve_target(None, {"defaults": {}, "targets": {}})
-    assert t.build_argv(["list-sessions"]) == ["tmux", "list-sessions"]
+    assert t.build_argv(["list-sessions"]) == ["tmux", "-u", "list-sessions"]
 
 
 def test_build_argv_local_with_socket():
     t = resolve_target(None, CONFIG)
     assert t.build_argv(["kill-server"]) == [
         "tmux",
+        "-u",
         "-L",
         "default-sock",
         "kill-server",
@@ -59,7 +60,7 @@ def test_build_argv_remote_quotes_command():
     assert "user@prod" in argv
     # the tmux command is a single, shell-quoted final argument
     remote_cmd = argv[-1]
-    assert remote_cmd.startswith("tmux -L work new-session")
+    assert remote_cmd.startswith("tmux -u -L work new-session")
     assert "'my sess'" in remote_cmd  # space-containing name is quoted
 
 

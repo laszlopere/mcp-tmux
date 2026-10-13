@@ -5,10 +5,23 @@ import pytest
 from mcp_tmux.runner import TmuxError, TmuxRunner, _map_error
 
 
-async def test_run_local_echo():
+@pytest.fixture
+def stand_in(tmp_path):
+    """Make a stand-in "tmux" that drops the global flags and execs ``cmd``."""
+
+    def make(cmd: str) -> str:
+        path = tmp_path / f"tmux-{os.path.basename(cmd)}"
+        path.write_text(f'#!/bin/sh\n[ "$1" = -u ] && shift\nexec {cmd} "$@"\n')
+        path.chmod(0o755)
+        return str(path)
+
+    return make
+
+
+async def test_run_local_echo(stand_in):
     # Use /bin/echo as a stand-in "tmux" binary to exercise the exec path
     # without needing tmux installed.
-    runner = TmuxRunner({"defaults": {}, "targets": {}}, tmux_bin="/bin/echo")
+    runner = TmuxRunner({"defaults": {}, "targets": {}}, tmux_bin=stand_in("/bin/echo"))
     result = await runner.run(["hello", "world"])
     assert result.ok
     assert result.stdout.strip() == "hello world"
@@ -26,18 +39,18 @@ async def test_run_missing_binary_returns_127():
     assert result.exit_code == 127
 
 
-async def test_run_timeout():
-    runner = TmuxRunner({"defaults": {}, "targets": {}}, tmux_bin="/bin/sleep")
+async def test_run_timeout(stand_in):
+    runner = TmuxRunner({"defaults": {}, "targets": {}}, tmux_bin=stand_in("/bin/sleep"))
     result = await runner.run(["5"], timeout=0.2)
     assert result.exit_code == 124
     assert "timed out" in result.stderr
 
 
 @pytest.mark.skipif(not os.path.exists("/proc/self/fd/0"), reason="needs /proc")
-async def test_run_does_not_pass_stdin():
+async def test_run_does_not_pass_stdin(stand_in):
     # A pipe on fd 0 stands in for the MCP stdio channel (pytest itself puts
     # /dev/null there); readlink stands in for tmux and reports its stdin.
-    runner = TmuxRunner({"defaults": {}, "targets": {}}, tmux_bin="/bin/readlink")
+    runner = TmuxRunner({"defaults": {}, "targets": {}}, tmux_bin=stand_in("/bin/readlink"))
     saved = os.dup(0)
     r, w = os.pipe()
     os.dup2(r, 0)
