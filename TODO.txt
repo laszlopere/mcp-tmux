@@ -35,7 +35,7 @@ Completed items are in TODO-DONE.txt.
    [x] 10.4. Timing script (outside the test suite): N `capture-pane` calls plus
       a `tmux_run` round trip, local and loopback SSH (optionally a real host);
       record a baseline before 10.5–10.8 and compare after each one.
-   [ ] 10.5. SSH multiplexing by default: add `ControlMaster=auto`,
+   [x] 10.5. SSH multiplexing by default: add `ControlMaster=auto`,
       `ControlPersist` and a private `ControlPath` to remote argv unless the
       user's options already set them. Argv tests: injected, overridable by a
       profile's `ssh_options`, absent for local targets.

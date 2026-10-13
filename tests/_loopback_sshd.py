@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from mcp_tmux.targets import ssh_control_options
+
 SSHD_CANDIDATES = ("/usr/sbin/sshd", "/usr/bin/sshd", "/usr/local/sbin/sshd")
 INSTALL_HINT = (
     "the loopback SSH tests need OpenSSH's sshd, ssh and ssh-keygen "
@@ -156,6 +158,13 @@ def loopback_sshd(d: Path) -> Iterator[LoopbackSSH]:
             time.sleep(0.1)
         yield lb
     finally:
+        # Stop the multiplexing master the SSH targets started, rather than
+        # leave it idling until ControlPersist runs out.
+        subprocess.run(
+            ["ssh", *ssh_options, *ssh_control_options(ssh_options), "-O", "exit", lb.host],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+        )
         proc.terminate()
         try:
             proc.wait(timeout=5)

@@ -245,6 +245,14 @@ ssh_options = ["-J", "bastion", "-p", "2222"]
 With no config file the server still works against local tmux and any ad-hoc
 `user@host` target (SSH options come from your `~/.ssh/config`).
 
+SSH connections are multiplexed: every remote call adds `-o ControlMaster=auto
+-o ControlPersist=10m -o ControlPath=<private dir>/ssh-%C`, so only the first
+call to a host pays for the SSH handshake. The private directory is
+`$XDG_RUNTIME_DIR/mcp-tmux-<uid>` (or the same name under the temp dir), mode
+0700. A profile's `ssh_options` override any of the three, and
+`ssh_options = ["-o", "ControlMaster=no"]` turns multiplexing off for that
+target.
+
 ## Development
 
 ```bash
