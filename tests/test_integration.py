@@ -174,3 +174,75 @@ async def test_run_collects_output_and_exit(runner):
     assert bad["exit_code"] == 1
 
     await runner.run_checked(["kill-session", "-t", "runtest"])
+
+
+async def _run(mcp, pane, command, timeout=10):
+    return _tool_json(
+        await mcp.call_tool(
+            "tmux_run", {"target_pane": pane, "command": command, "timeout": timeout}
+        )
+    )
+
+
+async def test_run_reports_nonzero_exit_codes(runner):
+    from mcp_tmux.server import build_server
+
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "runexit"])
+
+    r = await _run(mcp, "runexit", "echo partial; sh -c 'exit 42'")
+    assert (r["completed"], r["exit_code"]) == (True, 42)
+    assert r["output"].splitlines() == ["partial"]
+
+    # stderr lands in the pane too, so it is part of the output.
+    r = await _run(mcp, "runexit", "no-such-command-mcp-tmux")
+    assert (r["completed"], r["exit_code"]) == (True, 127)
+    assert "no-such-command-mcp-tmux" in r["output"]
+
+    await runner.run_checked(["kill-session", "-t", "runexit"])
+
+
+async def test_run_timeout_while_running_then_recovers(runner):
+    from mcp_tmux.server import build_server
+
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "runto"])
+
+    r = await _run(mcp, "runto", "sleep 30", timeout=1)
+    assert r["completed"] is False
+    assert r["exit_code"] is None
+    assert "timed out" in r["error"]
+    assert r["elapsed"] < 10
+
+    # Interrupt the still-running command; the pane is usable again and the
+    # stale markers of the timed-out run don't leak into the next result.
+    await runner.run_checked(["send-keys", "-t", "runto", "C-c"])
+    r = await _run(mcp, "runto", "echo recovered")
+    assert (r["completed"], r["exit_code"]) == (True, 0)
+    assert r["output"].splitlines() == ["recovered"]
+
+    await runner.run_checked(["kill-session", "-t", "runto"])
+
+
+async def test_run_output_containing_marker_text(runner):
+    from mcp_tmux.server import build_server
+
+    mcp = build_server(config=CONFIG)
+    await runner.run_checked(["new-session", "-d", "-s", "runmk"])
+
+    # Output that looks like another run's markers is returned as output, not
+    # mistaken for this run's bracket.
+    fake = "printf '%s\\n' __MCP_BEG_00000000__ '__MCP_END_00000000__ 7' 'x __MCP_END_ 0'"
+    r = await _run(mcp, "runmk", fake)
+    assert (r["completed"], r["exit_code"]) == (True, 0)
+    assert r["output"].splitlines() == [
+        "__MCP_BEG_00000000__",
+        "__MCP_END_00000000__ 7",
+        "x __MCP_END_ 0",
+    ]
+
+    # A second run in the same pane: the earlier markers sit in scrollback.
+    r = await _run(mcp, "runmk", "echo second")
+    assert r["output"].splitlines() == ["second"]
+
+    await runner.run_checked(["kill-session", "-t", "runmk"])

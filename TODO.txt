@@ -30,16 +30,15 @@ Completed items are in TODO-DONE.txt.
       `local` and `loopback-ssh`, on isolated `-L` sockets. A missing `sshd`
       fails the run with an install hint instead of skipping. CI installs
       `openssh-server` if the runner lacks it.
-   [ ] 10.3. Gaps in coverage: `tmux_run` with a non-zero exit, a timeout while
-      the command is still running, and output that contains the marker text;
-      argv tests for the default SSH options (injected, overridable by a
-      profile's `ssh_options`, absent for local targets).
+   [x] 10.3. Gaps in coverage: `tmux_run` with a non-zero exit, a timeout while
+      the command is still running, and output that contains the marker text.
    [ ] 10.4. Timing script (outside the test suite): N `capture-pane` calls plus
       a `tmux_run` round trip, local and loopback SSH (optionally a real host);
       record a baseline before 10.5–10.8 and compare after each one.
    [ ] 10.5. SSH multiplexing by default: add `ControlMaster=auto`,
       `ControlPersist` and a private `ControlPath` to remote argv unless the
-      user's options already set them.
+      user's options already set them. Argv tests: injected, overridable by a
+      profile's `ssh_options`, absent for local targets.
    [ ] 10.6. Batch tmux commands: combine multi-step tools into one invocation
       with `\;` (e.g. send-keys followed by capture-pane).
    [ ] 10.7. Event-driven waits: `tmux_run` signals completion with

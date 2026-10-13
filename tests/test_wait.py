@@ -49,3 +49,21 @@ def test_extract_ignores_input_echo_line():
         ]
     )
     assert _extract_run_output(content, BEG, END) == (0, "hi")
+
+
+def test_extract_ignores_other_runs_markers():
+    other_beg, other_end = "__MCP_BEG_00000000__", "__MCP_END_00000000__"
+    content = "\n".join(
+        [other_beg, "old", f"{other_end} 0", BEG, other_beg, f"{other_end} 3", f"{END} 0"]
+    )
+    assert _extract_run_output(content, BEG, END) == (0, f"{other_beg}\n{other_end} 3")
+
+
+def test_extract_end_marker_must_start_the_line():
+    content = "\n".join([BEG, f"echo {END} 0", f"{END} 5"])
+    assert _extract_run_output(content, BEG, END) == (5, f"echo {END} 0")
+
+
+def test_extract_end_needs_exit_code():
+    content = "\n".join([BEG, END, f"{END} x"])
+    assert _extract_run_output(content, BEG, END) is None
